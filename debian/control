@@ -9,12 +9,12 @@ Build-Depends:
  python3-setuptools,
  dh-python,
 # for tests
- gnupg2,
+ gnupg (>= 2.1.0~beta),
  socat,
 
 Package: split-gpg2
 Architecture: all
-Depends: ${misc:Depends}, ${python3:Depends}, socat, bash, gnupg2 (>= 2.1.0~beta), zenity, libnotify-bin
+Depends: ${misc:Depends}, ${python3:Depends}, socat, bash, gnupg (>= 2.1.0~beta), zenity, libnotify-bin
 Description: split-gpg2 for Qubes
-  split-gpg2 allows you to run the gpg2 client in a different Qubes-Domain than
+  split-gpg2 allows you to run the gpg client in a different Qubes-Domain than
   the gpg-agent.
