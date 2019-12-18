@@ -1,2 +1,10 @@
-. ~user/.split-gpg2-rc
+#!/bin/bash
+
+for d in /etc "${XDG_CONFIG_HOME:-$HOME/.config}"; do
+    rc_file="$d/split-gpg2-rc"
+    if [ -r "$rc_file" ]; then
+        . "$rc_file"
+    fi
+done
+
 /usr/bin/python3 -m splitgpg2
