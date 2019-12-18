@@ -715,6 +715,9 @@ def main():
     if os.environ.get('QUBES_SPLIT_GPG2_VERBOSE_NOTIFICATIONS', False) == 'yes':
         server.verbose_notifications = True
 
+    if os.environ.get('QUBES_SPLIT_GPG2_ALLOW_KEYGEN', None) == 'yes':
+        server.allow_keygen = True
+
     connection_terminated = loop.create_future()
     server.notify_on_disconnect.add(connection_terminated)
     loop.run_until_complete(server.run())
