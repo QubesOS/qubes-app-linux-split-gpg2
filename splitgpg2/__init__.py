@@ -166,6 +166,7 @@ class GpgServer:
         if not self.log_io_enable:
             return
         allowed = string.printable.\
+            replace('\t', '').\
             replace('\n', '').\
             replace('\r', '').\
             replace('\f', '').\
