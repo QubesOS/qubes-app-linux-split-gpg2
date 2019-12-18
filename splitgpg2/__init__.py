@@ -271,7 +271,6 @@ class GpgServer:
     @staticmethod
     def default_options():
         return {
-            # should be overriden on startup to reflect sensible values
             b'ttyname': (OptionHandlingType.fake, b'OK'),
             b'ttytype': (OptionHandlingType.fake, b'OK'),
             b'display': (OptionHandlingType.override, b':0'),
