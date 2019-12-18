@@ -7,5 +7,3 @@ else ifeq ($(PACKAGE_SET),vm)
 
   RPM_SPEC_FILES := rpm_spec/split-gpg2.spec
 endif
-
-# vim: filetype=make
