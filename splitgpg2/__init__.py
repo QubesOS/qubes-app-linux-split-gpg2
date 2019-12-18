@@ -196,26 +196,31 @@ class GpgServer:
         # wait for agent hello
         await self.handle_agent_response()
 
-    def abort(self, reason):
-        self.log.error('%s; Aborting!', reason)
+    def close(self, reason, log_level=logging.ERROR):
+        self.log.log(log_level, '%s; Closing!', reason)
+        # Closing the connection to the client is enough to cancel processing:
+        # Since it's the same socket closing the writer will also close the
+        # input. So after closing we can't read new commands or write responses.
+        # run() will terminate due to EOF.
         self.client_writer.close()
         self.agent_writer.close()
 
-    def abort_on_filtered_error(self, e):
+    def close_on_filtered_error(self, e):
         self.notify('command filtered out')
         self.client_write('ERR {} {}\n'.format(e.code, e.gpg_message).encode())
-        # break handling since we aren't sure that clients handle the error
+        # Break handling since we aren't sure that clients handle the error
         # correctly. This makes the filtering easier to implement and
         # we ensure that a client does not wrongly assumes that a command
         # was successful while is was indeed filtered out.
-        self.abort('command filtered out')
+        self.close('command filtered out')
 
     async def handle_command(self):
-        untrusted_line = await self.read_one_line_from_client()
-        if not untrusted_line:
-            # EOF
-            return
         try:
+            untrusted_line = await self.read_one_line_from_client()
+            if not untrusted_line:
+                # EOF
+                return
+
             untrusted_cmd, untrusted_args = extract_args(untrusted_line)
             try:
                 command = self.commands[untrusted_cmd]
@@ -224,7 +229,7 @@ class GpgServer:
             await command(untrusted_args=untrusted_args)
         except Filtered as e:
             self.log.exception(e)
-            self.abort_on_filtered_error(e)
+            self.close_on_filtered_error(e)
         except:  # pylint: disable=bare-except
             self.log.exception('Error processing command')
             self.abort('error')
@@ -239,7 +244,7 @@ class GpgServer:
                 raise Filtered
             return await inquire_command(untrusted_args=untrusted_args)
         except Filtered as e:
-            self.abort_on_filtered_error(e)
+            self.close_on_filtered_error(e)
         except:  # pylint: disable=bare-except
             self.log.exception('Error processing inquire')
             self.abort('error')
@@ -337,8 +342,7 @@ class GpgServer:
         untrusted_line = untrusted_line.rstrip(b'\n')
         # pylint: disable=arguments-differ
         if len(untrusted_line) > ASSUAN_LINELENGTH:
-            self.log.error('Line too long, dropping')
-            return b''
+            raise Filtered('Line too long, dropping')
         self.log_io('C >>>', untrusted_line)
         return untrusted_line
 
@@ -536,7 +540,7 @@ class GpgServer:
         if untrusted_args is not None:
             raise Filtered
         await self.send_agent_command(b'BYE', None)
-        self.client_writer.close()
+        self.close("Client closed connection", logging.INFO)
 
     def get_inquires_for_command(self, command: bytes) -> Dict[bytes, Callable]:
         if command == b'GENKEY':
@@ -615,7 +619,7 @@ class GpgServer:
 
     async def inquire_KEYPARAM(self, untrusted_args):
         if untrusted_args is not None:
-            self.abort('unexpected arguments to KEYPARAM inquire')
+            raise Filtered('unexpected arguments to KEYPARAM inquire')
         await self.send_inquire(b'KEYPARAM', {
             b'D': self.inquire_command_D,
             b'END': self.inquire_command_END,
@@ -633,7 +637,7 @@ class GpgServer:
 
     async def inquire_CIPHERTEXT(self, untrusted_args):
         if untrusted_args is not None:
-            self.abort('unexpected arguments to CIPHERTEXT inquire')
+            raise Filtered('unexpected arguments to CIPHERTEXT inquire')
         await self.send_inquire(b'CIPHERTEXT', {
             b'D': self.inquire_command_D,
             b'END': self.inquire_command_END,
@@ -652,7 +656,7 @@ class GpgServer:
 
     async def inquire_command_END(self, *, untrusted_args):
         if untrusted_args is not None:
-            self.abort('unexpected arguments to END')
+            raise Filtered('unexpected arguments to END')
         self.agent_write(b'END\n')
         return False
 
