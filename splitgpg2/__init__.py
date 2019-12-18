@@ -784,9 +784,88 @@ class GpgServer:
     # each function returns whether further responses are expected
 
     async def inquire_command_D(self, *, untrusted_args):
-        # XXX: should we sanitize this here?
-        self.agent_write(b'D ' + untrusted_args + b'\n')
+        # We parse and then reserialize the sexpr. Currently we assume that the
+        # sexpr fits in one assuan line. This line length also implicitly
+        # limits the sexpr sizes.
+
+        # XXX: Should we check/sanitize the sexpr content?
+
+        try:
+            args = self.parse_sexpr(self.unescape_D(untrusted_args))
+        except ValueError:
+            raise Filtered
+
+        self.agent_write(b'D ' + self.escape_D(self.serialize_sexpr(args)) + b'\n')
         return True
+
+    @staticmethod
+    def unescape_D(untrusted_arg):
+        return re.sub(
+            rb'%[0-9A-F]{2}',
+            lambda m: bytes([int(m.group(0)[1:], 16)]),
+            untrusted_arg
+        )
+
+    @staticmethod
+    def escape_D(data):
+        # Like gpg we only escape those chars that are really necessary. Since
+        # the data normally contains binary data it's likely that gpg-agent's
+        # parser works fine with strange chars, so it doesn't makes much sense
+        # to be more protective here.
+        return data.replace(b'%', b'%25').\
+                    replace(b'\r', b'%0d').\
+                    replace(b'\n', b'%0a')
+
+
+    # This parser is only good enough to parse the sexpr gpg generates. It does
+    # *not* implement http://people.csail.mit.edu/rivest/Sexp.txt fully. Since
+    # we send the reserialized form this should be safe.
+
+    @classmethod
+    def parse_sexpr(klass, untrusted_arg):
+        if len(untrusted_arg) == 0:
+            raise ValueError("no sexpr")
+        sexpr, rest = klass._parse_sexpr(untrusted_arg)
+        if len(rest) != 0:
+            raise RuntimeError("shold never happen")
+        return sexpr[0]
+
+    @classmethod
+    def _parse_sexpr(klass, untrusted_arg):
+        if len(untrusted_arg) == 0:
+            return ([], b'')
+        elif untrusted_arg[0] == ord(')'):
+            return ([], untrusted_arg[1:].lstrip(b' '))
+
+        if untrusted_arg[0] in range(0x30, 0x40):
+            length_s, _, rest = untrusted_arg.partition(b':')
+            length = int(length_s, 10)
+            if len(rest) < length:
+                raise ValueError("Invalid length")
+            value = rest[0:length]
+            rest = rest[length:]
+        elif untrusted_arg[0] == ord('('):
+            value, rest = klass._parse_sexpr(untrusted_arg[1:])
+        else:
+            m = re.match(rb'\A([0-9a-zA-Z-_]+) ?(.*)\Z', untrusted_arg)
+            if m is None:
+                raise ValueError("Invalid literal")
+            value = m.group(1)
+            rest = m.group(2)
+
+        rest_parsed, new_rest = klass._parse_sexpr(rest)
+        return ([value] + rest_parsed, new_rest)
+
+    @classmethod
+    def serialize_sexpr(klass, sexpr):
+        def serialize_item(i):
+            if isinstance(i, list):
+                return klass.serialize_sexpr(i)
+            else:
+                bi = bytes(i)
+                return b'%i:%s' % (len(bi), bi)
+
+        return b'(' + b''.join(serialize_item(i) for i in sexpr) + b')'
 
     async def inquire_command_END(self, *, untrusted_args):
         if untrusted_args is not None:
