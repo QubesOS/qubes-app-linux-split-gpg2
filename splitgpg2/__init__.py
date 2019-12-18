@@ -664,7 +664,7 @@ TIMER_NAMES = {
     'QUBES_SPLIT_GPG2_PKDECRYPT_AUTOACCEPT_TIME': 'PKDECRYPT',
 }
 
-async def open_stdin_connection(*, loop=None):
+def open_stdin_connection(*, loop=None):
     if loop is None:
         loop = asyncio.get_event_loop()
     sock = socket.fromfd(sys.stdin.fileno(), socket.AF_UNIX, socket.SOCK_STREAM)
@@ -683,12 +683,13 @@ def main():
 
     client_domain = os.environ['QREXEC_REMOTE_DOMAIN']
     loop = asyncio.get_event_loop()
-    reader, writer = loop.run_until_complete(open_stdin_connection())
+    reader, writer = open_stdin_connection()
     server = GpgServer(reader, writer, client_domain)
 
     for timer in TIMER_NAMES:
         if timer in os.environ:
-            server.timer_delay[TIMER_NAMES[timer]] = int(os.environ[timer])
+            value = os.environ[timer]
+            server.timer_delay[TIMER_NAMES[timer]] = int(value) if re.match(r'\A(0|[1-9][0-9]*)\Z', value) else None
 
     if os.environ.get('QUBES_SPLIT_GPG2_VERBOSE_NOTIFICATIONS', False) == 'yes':
         server.verbose_notifications = True
@@ -696,7 +697,3 @@ def main():
     connection_terminated = loop.create_future()
     server.notify_on_disconnect.add(connection_terminated)
     loop.run_until_complete(server.run())
-
-
-if __name__ == '__main__':
-    main()
