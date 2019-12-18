@@ -61,7 +61,7 @@ Install the dom0-rpm in dom0. (Or just create a proper
 /etc/qubes-rpc/policy/qubes.Gpg2).
 
 Create ~user/.split-gpg2-rc in the server and in the client domain.
-See /usr/share/split-gpg2/examples/split-gpg2-rc.example for an example and the
+See /usr/share/doc/split-gpg2/examples/split-gpg2-rc.example for an example and the
 available options.
 
 Enable the split-gpg2-client service in the client domain either via the gui or
