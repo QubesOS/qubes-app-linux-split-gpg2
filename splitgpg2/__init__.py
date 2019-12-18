@@ -47,9 +47,11 @@ class GPGErrorCode:
     SOURCE_SHIFT = 24
     SOURCE_GPGAGENT = 4
     ERR_USER_1 = 1024
+    ERR_NO_SCDAEMON = 119
     ERR_ASS_UNKNOWN_CMD = 275
 
     UnknownIPCCommand = SOURCE_GPGAGENT << SOURCE_SHIFT | ERR_ASS_UNKNOWN_CMD
+    NoSCDaemon = SOURCE_GPGAGENT << SOURCE_SHIFT | ERR_NO_SCDAEMON
 
 
 class StartFailed(Exception):
@@ -265,7 +267,8 @@ class GpgServer:
             b'SETHASH': self.command_SETHASH,
             b'PKSIGN': self.command_PKSIGN,
             b'GETINFO': self.command_GETINFO,
-            b'BYE': self.command_BYE
+            b'BYE': self.command_BYE,
+            b'SCD': self.command_SCD
         }
 
     @staticmethod
@@ -541,6 +544,16 @@ class GpgServer:
             raise Filtered
         await self.send_agent_command(b'BYE', None)
         self.close("Client closed connection", logging.INFO)
+
+    async def command_SCD(self, untrusted_args: Optional[bytes]):
+        # We don't support smartcard daemon commands, but fake enough that the
+        # search for a default key doesn't fail.
+
+        if untrusted_args != b'SERIALNO openpgp':
+            raise Filtered
+
+        self.fake_respond(
+            b'ERR %d No SmartCard daemon' % GPGErrorCode.NoSCDaemon)
 
     def get_inquires_for_command(self, command: bytes) -> Dict[bytes, Callable]:
         if command == b'GENKEY':
