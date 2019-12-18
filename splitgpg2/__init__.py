@@ -185,9 +185,13 @@ class GpgServer:
             raise StartFailed
 
         dirs = subprocess.check_output(['gpgconf', '--list-dirs'])
+        if self.allow_keygen:
+            socket_field = b'agent-socket:'
+        else:
+            socket_field = b'agent-extra-socket:'
         # search for agent-socket:/run/user/1000/gnupg/S.gpg-agent
         agent_socket_path = [d.split(b':', 1)[1] for d in dirs.splitlines()
-                             if d.startswith(b'agent-socket:')][0]
+                             if d.startswith(socket_field)][0]
         self.agent_socket_path = agent_socket_path.decode()
 
         self.agent_reader, self.agent_writer = await asyncio.open_unix_connection(
@@ -276,7 +280,7 @@ class GpgServer:
         return {
             b'ttyname': (OptionHandlingType.fake, b'OK'),
             b'ttytype': (OptionHandlingType.fake, b'OK'),
-            b'display': (OptionHandlingType.override, b':0'),
+            b'display': (OptionHandlingType.fake, b'OK'),
             b'lc-ctype': (OptionHandlingType.fake, b'OK'),
             b'lc-messages': (OptionHandlingType.fake, b'OK'),
             b'putenv': (OptionHandlingType.fake, b'OK'),
