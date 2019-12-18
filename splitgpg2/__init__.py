@@ -80,9 +80,9 @@ class OptionHandlingType(enum.Enum):
 
 
 class HashAlgo:
-    def __init__(self, name: str, lenght: int) -> None:
+    def __init__(self, name: str, length: int) -> None:
         self.name = name
-        self.len = lenght
+        self.len = length
 
 
 @enum.unique
