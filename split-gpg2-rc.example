@@ -1,25 +1,30 @@
-# put this file in ~user/.config/split-gpg2-rc and modify according your needs
+###### split-gpg2 example config ######
 
-#### Settings affecting the client (running gpg2) ####
-export SPLIT_GPG2_SERVER_DOMAIN=gpg
+# This file is sources with bash. Put this file in ~user/.config/split-gpg2-rc
+# or /etc/split-gpg2-rc (the later is sourced before the former).
+
+
+#### Settings affecting the client (running the 'gpg' cmdline tool) ####
+
+#export SPLIT_GPG2_SERVER_DOMAIN="@default"
 
 
 ##### Settings affecting the server (running gpg-agent) ####
-export SPLIT_GPG2_PKSIGN_AUTOACCEPT_TIME=no
-export SPLIT_GPG2_PKDECRYPT_AUTOACCEPT_TIME=300
 
-# to enable verbose notifications comment the folloing line out:
-#export SPLIT_GPG2_VERBOSE_NOTIFICATIONS=yes
+#export SPLIT_GPG2_PKSIGN_AUTOACCEPT_TIME=no
+#export SPLIT_GPG2_PKDECRYPT_AUTOACCEPT_TIME=300
 
-# for more advanced setups you can set GNUPG home here. This file will be
+#export SPLIT_GPG2_VERBOSE_NOTIFICATIONS=no
+#export SPLIT_GPG2_ALLOW_KEYGEN=no
+
+# For more advanced setups you can set the GNUPG home here. This file will be
 # sourced everytime a client connets. To have one home dir per client domain
 # you can use:
 #export GNUPGHOME="$HOME/gpg-home/$QREXEC_REMOTE_DOMAIN"
-# before using this you have to create a gpg home for each client domain in
+# Before using this you have to create a gpg home for each client domain in
 # ~user/gpg-home/$client_domain where $client_domain is the name of the client
-# domain
+# domain.
 
-# this is for debugging purpose only
-# EVERYTHING WILL BE LOGGED
-# including potentially confidential data/keys/etc.
+# This is for debugging purpose only EVERYTHING WILL BE LOGGED including
+# potentially confidential data/keys/etc.
 #export SPLIT_GPG2_DEBUG_LOG=/tmp/split-gpg2.log
