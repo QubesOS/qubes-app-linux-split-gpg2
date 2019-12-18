@@ -538,8 +538,6 @@ class GpgServer:
         await self.send_agent_command(b'BYE', None)
         self.client_writer.close()
 
-###
-
     def get_inquires_for_command(self, command: bytes) -> Dict[bytes, Callable]:
         if command == b'GENKEY':
             inquires = {
