@@ -13,13 +13,13 @@ BuildRequires:  python3-rpm-macros
 BuildRequires:  python%{python3_pkgversion}-setuptools
 Requires:       socat
 Requires:       bash
-#Requires:       gnupg >= 2.1.0
+Requires:       gnupg2 >= 2.1.0
 Requires:       systemd
 Requires:       zenity
 Requires:       libnotify
 
 %description
-split-gpg2 allows you to run the gpg2 client in a different Qubes-Domain than
+split-gpg2 allows you to run the gpg client in a different Qubes-Domain than
 the gpg-agent.
 
 %prep
