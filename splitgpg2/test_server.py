@@ -119,7 +119,7 @@ class TC_Server(TestCase):
 
     def genkey(self):
         p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
-            'gpg2', '--batch', '--passphrase', '', '--quick-gen-key',
+            'gpg', '--batch', '--passphrase', '', '--quick-gen-key',
             self.key_uid,
             stderr=subprocess.PIPE, stdout=subprocess.PIPE))
         stdout, stderr = self.loop.run_until_complete(p.communicate())
@@ -153,7 +153,7 @@ Name-Email: {}
 %commit
 """.format(self.key_uid)
         p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
-            'gpg2', '--batch', '--gen-key',
+            'gpg', '--batch', '--gen-key',
             env=self.test_environ,
             stderr=subprocess.PIPE, stdout=subprocess.PIPE,
             stdin=subprocess.PIPE))
@@ -172,7 +172,7 @@ Name-Email: {}
                     self.gpg_dir.name + '/server/trustdb.gpg')
         # verify the key is there bypassing splitgpg2, test one thing at a time
         p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
-            'gpg2', '--with-colons', '-K', self.key_uid,
+            'gpg', '--with-colons', '-K', self.key_uid,
             stderr=subprocess.PIPE, stdout=subprocess.PIPE))
         stdout, stderr = self.loop.run_until_complete(p.communicate())
         if p.returncode:
@@ -185,7 +185,7 @@ Name-Email: {}
         self.genkey()
 
         p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
-            'gpg2', '--with-colons', '-K', self.key_uid,
+            'gpg', '--with-colons', '-K', self.key_uid,
             env=self.test_environ,
             stderr=subprocess.PIPE, stdout=subprocess.PIPE))
         stdout, stderr = self.loop.run_until_complete(p.communicate())
@@ -205,7 +205,7 @@ Name-Email: {}
         %commit
         """.format(self.key_uid)
         p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
-            'gpg2', '--batch', '--gen-key',
+            'gpg', '--batch', '--gen-key',
             env=self.test_environ,
             stderr=subprocess.PIPE, stdout=subprocess.PIPE,
             stdin=subprocess.PIPE))
@@ -216,7 +216,7 @@ Name-Email: {}
                 p.returncode, stdout.decode(), stderr.decode()))
 
         p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
-            'gpg2', '--with-colons', '-K', self.key_uid,
+            'gpg', '--with-colons', '-K', self.key_uid,
             env=self.test_environ,
             stderr=subprocess.PIPE, stdout=subprocess.PIPE))
         stdout, stderr = self.loop.run_until_complete(p.communicate())
@@ -230,7 +230,7 @@ Name-Email: {}
         self.genkey()
         test_data = b'Data to sign'
         p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
-            'gpg2', '--local-user', self.key_uid, '--sign',
+            'gpg', '--local-user', self.key_uid, '--sign',
             '--output', self.gpg_dir.name + '/signed', '-',
             env=self.test_environ,
             stdin=subprocess.PIPE,
@@ -245,7 +245,7 @@ Name-Email: {}
         self.server.close()
 
         p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
-            'gpg2', '--verify', self.gpg_dir.name + '/signed',
+            'gpg', '--verify', self.gpg_dir.name + '/signed',
             env=self.test_environ,
             stderr=subprocess.PIPE, stdout=subprocess.PIPE))
         stdout, stderr = self.loop.run_until_complete(p.communicate())
@@ -259,7 +259,7 @@ Name-Email: {}
         self.genkey()
         test_data = b'Data to encrypt'
         p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
-            'gpg2', '-r', self.key_uid, '--encrypt',
+            'gpg', '-r', self.key_uid, '--encrypt',
             '--output', self.gpg_dir.name + '/encrypted', '-',
             env=self.test_environ,
             stdin=subprocess.PIPE,
@@ -271,7 +271,7 @@ Name-Email: {}
                 p.returncode, stdout.decode(), stderr.decode()))
 
         p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
-            'gpg2', '--decrypt', self.gpg_dir.name + '/encrypted',
+            'gpg', '--decrypt', self.gpg_dir.name + '/encrypted',
             env=self.test_environ,
             stderr=subprocess.PIPE, stdout=subprocess.PIPE))
         stdout, stderr = self.loop.run_until_complete(p.communicate())
@@ -284,7 +284,7 @@ Name-Email: {}
         self.genkey()
         test_data = b'Data to sign and encrypt'
         p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
-            'gpg2', '--local-user', self.key_uid, '--sign', '--encrypt',
+            'gpg', '--local-user', self.key_uid, '--sign', '--encrypt',
             '-r', self.key_uid,
             '--output', self.gpg_dir.name + '/signed', '-',
             env=self.test_environ,
@@ -297,7 +297,7 @@ Name-Email: {}
                 p.returncode, stdout.decode(), stderr.decode()))
 
         p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
-            'gpg2', '--output', '-',
+            'gpg', '--output', '-',
             '--decrypt', self.gpg_dir.name + '/signed',
             env=self.test_environ,
             stderr=subprocess.PIPE, stdout=subprocess.PIPE))
@@ -316,7 +316,7 @@ Name-Email: {}
         with open(self.gpg_dir.name + '/input_data', 'wb') as f_data:
             f_data.write(test_data)
         p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
-            'gpg2', '--local-user', self.key_uid, '--detach-sign',
+            'gpg', '--local-user', self.key_uid, '--detach-sign',
             '--output', self.gpg_dir.name + '/signature',
             self.gpg_dir.name + '/input_data',
             env=self.test_environ,
@@ -332,7 +332,7 @@ Name-Email: {}
         self.server.close()
 
         p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
-            'gpg2', '--verify', self.gpg_dir.name + '/signature',
+            'gpg', '--verify', self.gpg_dir.name + '/signature',
             self.gpg_dir.name + '/input_data',
             env=self.test_environ,
             stderr=subprocess.PIPE, stdout=subprocess.PIPE))
@@ -346,7 +346,7 @@ Name-Email: {}
     def test_008_export_secret_deny(self):
         self.genkey()
         p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
-            'gpg2', '-a', '--export-secret-key', self.key_uid,
+            'gpg', '-a', '--export-secret-key', self.key_uid,
             env=self.test_environ,
             stdin=subprocess.PIPE,
             stderr=subprocess.PIPE, stdout=subprocess.PIPE))
@@ -358,7 +358,7 @@ Name-Email: {}
     def test_009_genkey_with_pinentry(self):
         self.start_dummy_pinentry()
         p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
-            'gpg2', '--batch', '--quick-gen-key',
+            'gpg', '--batch', '--quick-gen-key',
             self.key_uid,
             env=self.test_environ,
             stderr=subprocess.PIPE, stdout=subprocess.PIPE))
@@ -378,7 +378,7 @@ Name-Email: {}
                     self.gpg_dir.name + '/server/trustdb.gpg')
         # verify the key is there bypassing splitgpg2, test one thing at a time
         p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
-            'gpg2', '--with-colons', '-K', self.key_uid,
+            'gpg', '--with-colons', '-K', self.key_uid,
             stderr=subprocess.PIPE, stdout=subprocess.PIPE))
         stdout, stderr = self.loop.run_until_complete(p.communicate())
         if p.returncode:
@@ -396,7 +396,7 @@ Name-Email: {}
 %commit
 """.format(self.key_uid)
         p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
-            'gpg2', '--batch', '--gen-key',
+            'gpg', '--batch', '--gen-key',
             env=self.test_environ,
             stderr=subprocess.PIPE, stdout=subprocess.PIPE,
             stdin=subprocess.PIPE))
