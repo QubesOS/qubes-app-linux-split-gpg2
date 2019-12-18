@@ -280,7 +280,7 @@ class GpgServer:
         return {
             b'ttyname': (OptionHandlingType.fake, b'OK'),
             b'ttytype': (OptionHandlingType.fake, b'OK'),
-            b'display': (OptionHandlingType.fake, b'OK'),
+            b'display': (OptionHandlingType.override, b':0'),
             b'lc-ctype': (OptionHandlingType.fake, b'OK'),
             b'lc-messages': (OptionHandlingType.fake, b'OK'),
             b'putenv': (OptionHandlingType.fake, b'OK'),
@@ -537,7 +537,7 @@ class GpgServer:
         await self.send_agent_command(b'PKSIGN', args)
 
     async def command_GETINFO(self, untrusted_args: Optional[bytes]):
-        if untrusted_args != b'version':
+        if not untrusted_args in [b'version', b'restricted']:
             raise Filtered
         args = untrusted_args
 

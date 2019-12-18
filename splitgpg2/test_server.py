@@ -137,6 +137,9 @@ class TC_Server(TestCase):
             'gpg-connect-agent', '/bye', env=self.test_environ,
             stderr=subprocess.PIPE, stdout=subprocess.PIPE))
         stdout, stderr = self.loop.run_until_complete(p.communicate())
+        stderr = stderr.replace(
+            b'gpg-connect-agent: connection to agent is in restricted mode\n',
+            b'')
         if p.returncode or stderr or stdout:
             self.fail('gpg-connect-agent exit with {}: {}{}'.format(
                 p.returncode, stdout.decode(), stderr.decode()))
