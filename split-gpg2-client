@@ -4,14 +4,4 @@
 
 agent_socket=`gpgconf --list-dirs | grep '^agent-socket:' | cut -d ':' -f 2`
 
-if [ -S "$agent_socket" ]; then
-    agent_pid=`lsof -F p "$agent_socket" | cut -b 2-`
-
-    if [ -n "$agent_pid" ]; then
-        kill $agent_pid
-    fi
-
-    rm -f "$agent_socket"
-fi
-
 socat "unix-listen:$agent_socket,fork,unlink-early" "exec:qrexec-client-vm $QUBES_GPG_DOMAIN qubes.Gpg2"
