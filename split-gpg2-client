@@ -1,15 +1,17 @@
 #!/bin/bash
 
+. ~user/.split-gpg2-rc
+
 agent_socket=`gpgconf --list-dirs | grep '^agent-socket:' | cut -d ':' -f 2`
 
 if [ -S "$agent_socket" ]; then
     agent_pid=`lsof -F p "$agent_socket" | cut -b 2-`
 
-    if [ -n $agent_pid ]; then
+    if [ -n "$agent_pid" ]; then
         kill $agent_pid
     fi
 
     rm -f "$agent_socket"
 fi
 
-socat "UNIX-LISTEN:$agent_socket,fork" EXEC:/usr/share/split-gpg2/split-gpg2-client-wrapper
+socat "unix-listen:$agent_socket,fork,unlink-early" "exec:qrexec-client-vm $QUBES_GPG_DOMAIN qubes.Gpg2"
