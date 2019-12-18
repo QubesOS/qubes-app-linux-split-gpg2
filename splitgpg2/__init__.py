@@ -330,7 +330,7 @@ class GpgServer:
             short_msg,
             'for the next {}s'.format(delay) if delay is not None else '')
         if subprocess.call(['zenity', '--question', '--title', short_msg,
-                            '--text', question]) != 0:
+                            '--text', question, '--timeout', '30']) != 0:
             raise Filtered
 
         self.notify('command {} allowed'.format(name))
