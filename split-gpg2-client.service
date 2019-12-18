@@ -1,5 +1,5 @@
 [Unit]
-Description=Qubes split-gpg2 client
+Description=split-gpg2 client
 ConditionPathExists=/run/qubes-service/split-gpg2-client
 After=qubes-misc-post.service
 

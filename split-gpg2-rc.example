@@ -1,15 +1,15 @@
-# put this file in ~user/.split-gpg2-rc and modify according your needs
+# put this file in ~user/.config/split-gpg2-rc and modify according your needs
 
 #### Settings affecting the client (running gpg2) ####
-export QUBES_GPG_DOMAIN=gpg
+export SPLIT_GPG2_SERVER_DOMAIN=gpg
 
 
 ##### Settings affecting the server (running gpg-agent) ####
-export QUBES_SPLIT_GPG2_PKSIGN_AUTOACCEPT_TIME=no
-export QUBES_SPLIT_GPG2_PKDECRYPT_AUTOACCEPT_TIME=300
+export SPLIT_GPG2_PKSIGN_AUTOACCEPT_TIME=no
+export SPLIT_GPG2_PKDECRYPT_AUTOACCEPT_TIME=300
 
 # to enable verbose notifications comment the folloing line out:
-#export QUBES_SPLIT_GPG2_VERBOSE_NOTIFICATIONS=yes
+#export SPLIT_GPG2_VERBOSE_NOTIFICATIONS=yes
 
 # for more advanced setups you can set GNUPG home here. This file will be
 # sourced everytime a client connets. To have one home dir per client domain
@@ -22,4 +22,4 @@ export QUBES_SPLIT_GPG2_PKDECRYPT_AUTOACCEPT_TIME=300
 # this is for debugging purpose only
 # EVERYTHING WILL BE LOGGED
 # including potentially confidential data/keys/etc.
-#export QUBES_SPLIT_GPG2_DEBUG_LOG=/tmp/split-gpg2.log
+#export SPLIT_GPG2_DEBUG_LOG=/tmp/split-gpg2.log

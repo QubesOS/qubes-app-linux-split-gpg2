@@ -4,4 +4,4 @@
 
 agent_socket=`gpgconf --list-dirs | grep '^agent-socket:' | cut -d ':' -f 2`
 
-socat "unix-listen:$agent_socket,fork,unlink-early" "exec:qrexec-client-vm $QUBES_GPG_DOMAIN qubes.Gpg2"
+socat "unix-listen:$agent_socket,fork,unlink-early" "exec:qrexec-client-vm $SPLIT_GPG2_SERVER_DOMAIN qubes.Gpg2"

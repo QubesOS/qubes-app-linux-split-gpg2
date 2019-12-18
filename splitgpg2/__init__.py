@@ -163,7 +163,7 @@ class GpgServer:
 
         self.update_keygrip_map()
 
-        debug_log = os.environ.get('QUBES_SPLIT_GPG2_DEBUG_LOG', None)
+        debug_log = os.environ.get('SPLIT_GPG2_DEBUG_LOG', None)
         if debug_log:
             handler = logging.FileHandler(debug_log)
             self.log.addHandler(handler)
@@ -352,7 +352,7 @@ class GpgServer:
         timestamp_path.touch()
 
     def timestamp_path(self, name) -> pathlib.Path:
-        return pathlib.Path('{}_qubes-split-gpg2-timestamp_{}'.format(
+        return pathlib.Path('{}_split-gpg2-timestamp_{}'.format(
             self.agent_socket_path, name))
 
     def client_write(self, data):
@@ -877,8 +877,8 @@ class GpgServer:
 
 
 TIMER_NAMES = {
-    'QUBES_SPLIT_GPG2_PKSIGN_AUTOACCEPT_TIME': 'PKSIGN',
-    'QUBES_SPLIT_GPG2_PKDECRYPT_AUTOACCEPT_TIME': 'PKDECRYPT',
+    'SPLIT_GPG2_PKSIGN_AUTOACCEPT_TIME': 'PKSIGN',
+    'SPLIT_GPG2_PKDECRYPT_AUTOACCEPT_TIME': 'PKDECRYPT',
 }
 
 def open_stdin_connection(*, loop=None):
@@ -908,10 +908,10 @@ def main():
             value = os.environ[timer]
             server.timer_delay[TIMER_NAMES[timer]] = int(value) if re.match(r'\A(0|[1-9][0-9]*)\Z', value) else None
 
-    if os.environ.get('QUBES_SPLIT_GPG2_VERBOSE_NOTIFICATIONS', False) == 'yes':
+    if os.environ.get('SPLIT_GPG2_VERBOSE_NOTIFICATIONS', False) == 'yes':
         server.verbose_notifications = True
 
-    if os.environ.get('QUBES_SPLIT_GPG2_ALLOW_KEYGEN', None) == 'yes':
+    if os.environ.get('SPLIT_GPG2_ALLOW_KEYGEN', None) == 'yes':
         server.allow_keygen = True
 
     connection_terminated = loop.create_future()
