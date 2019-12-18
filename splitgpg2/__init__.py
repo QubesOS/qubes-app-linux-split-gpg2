@@ -84,6 +84,19 @@ class HashAlgo:
         self.name = name
         self.len = length
 
+class KeyInfo:
+    def __init__(self):
+        self.fingerprint = None
+        self.keygrip = None
+        self.first_uid = None
+        self.subkeys = []
+
+class SubKeyInfo:
+    def __init__(self):
+        self.fingerprint = None
+        self.keygrip = None
+        self.key = None
+
 
 @enum.unique
 class ServerState(enum.Enum):
@@ -147,6 +160,8 @@ class GpgServer:
         self.agent_reader = None
         self.agent_writer = None
         self.untrusted_input_buffer = bytearray()
+
+        self.update_keygrip_map()
 
         debug_log = os.environ.get('QUBES_SPLIT_GPG2_DEBUG_LOG', None)
         if debug_log:
@@ -485,16 +500,118 @@ class GpgServer:
     async def command_SIGKEY(self, untrusted_args: Optional[bytes]):
         args = self.verify_keygrip_arguments(1, 1, untrusted_args)
         await self.send_agent_command(b'SIGKEY', args)
+        await self.setkeydesc(args)
 
     async def command_SETKEY(self, untrusted_args: Optional[bytes]):
         args = self.verify_keygrip_arguments(1, 1, untrusted_args)
         await self.send_agent_command(b'SETKEY', args)
+        await self.setkeydesc(args)
+
+    async def setkeydesc(self, keygrip):
+        info = self.keygrip_map.get(keygrip)
+        if info is None:
+            self.update_keygrip_map()
+            info = self.keygrip_map.get(keygrip)
+
+        if info is None:
+            desc = b'Keygrip: %s' % keygrip
+        else:
+            if isinstance(info, SubKeyInfo):
+                key = info.key
+                subkey_desc = b'\nSubkey Fingerprint: %s' % info.fingerprint
+            else:
+                key = info
+                subkey_desc = b''
+
+            desc = b'UID: %s\nFingerprint: %s%s' % (
+                    key.first_uid.split(b'\n')[0],
+                    key.fingerprint,
+                    subkey_desc)
+
+        self.agent_write(b'SETKEYDESC %s\n' % self.percent_plus_escape(desc))
+
+        untrusted_line = await self.agent_reader.readline()
+        untrusted_line = untrusted_line.rstrip(b'\n')
+        self.log_io('A >>>', untrusted_line)
+        if untrusted_line != b'OK':
+            raise ProtocolError('SETKEYDESC failed')
+
+    @staticmethod
+    def estream_unescape(s):
+        """Undo es_write_sanitized()"""
+
+        char_map = { b'\\': b'\\',
+                     b'n': b'\n',
+                     b'r': b'\r',
+                     b'f': b'\f',
+                     b'v': b'\v',
+                     b'b': b'\b',
+                     b'0': b'\0'}
+        def map_back(m):
+            c = m.group(1)
+            if c in char_map:
+                return char_map[c]
+            else:
+                return bytes([int(c[1:2], 16)])
+
+
+        return re.sub(rb'\\(\\|n|r|f|v|b|0|x[0-9-af]{2})', map_back, s)
+
+    @staticmethod
+    def percent_plus_escape(s):
+        unescaped_ascii = [c for c in range(0x20, 0x7e) if c not in [c for c in b'+"% ']]
+        def esc(c):
+            if c in unescaped_ascii:
+                return bytes([c])
+            elif c == ord(' '):
+                return b'+'
+            else:
+                return b'%%%02x' % c
+        return b''.join(esc(c) for c in s)
+
+    def update_keygrip_map(self):
+        out = subprocess.check_output(['gpg', '--list-secret-keys', '--with-colons'])
+        keys = []
+        key = None
+        subkey = None
+        for line in out.split(b"\n"):
+            fields = line.split(b":")
+            if fields[0] in [b"sec", b"ssb", b""]:
+                if subkey is not None:
+                    subkey.key = key
+                    key.subkeys.append(subkey)
+                    subkey = None
+            if fields[0] in [b"sec", b""] and key is not None:
+                keys.append(key)
+
+            if fields[0] == b"sec":
+                key = KeyInfo()
+            elif fields[0] == b"ssb":
+                subkey = SubKeyInfo()
+            elif fields[0] == b"fpr":
+                if subkey is None:
+                    key.fingerprint = fields[9]
+                else:
+                    subkey.fingerprint = fields[9]
+            elif fields[0] == b"grp":
+                if subkey is None:
+                    key.keygrip = fields[9]
+                else:
+                    subkey.keygrip = fields[9]
+            elif fields[0] == b"uid" and key.first_uid is None:
+                key.first_uid = self.estream_unescape(fields[9])
+
+        new_keygrip_map = {}
+        for key in keys:
+            new_keygrip_map[key.keygrip] = key
+            for subkey in key.subkeys:
+                new_keygrip_map[subkey.keygrip] = subkey
+        self.keygrip_map = new_keygrip_map
 
     async def command_SETKEYDESC(self, untrusted_args: Optional[bytes]):
-        # XXX: is there a better way than showing the message
-        #      from the untrusted domain
-        args = self.sanitize_key_desc(untrusted_args)
-        await self.send_agent_command(b'SETKEYDESC', args)
+        # Fake a positive respose. We always send a SETKEYDESC after
+        # SETKEY/SIGKEY.
+        self.fake_respond(b'OK')
 
     async def command_PKDECRYPT(self, untrusted_args: Optional[bytes]):
         if untrusted_args is not None:
