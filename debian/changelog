@@ -1,3 +1,9 @@
+split-gpg2 (0.2~rc1) experimental; urgency=low
+
+  * TODO
+
+ -- HW42 <hw42@ipsumj.de>  Wed, 18 Dec 2019 20:39:22 +0100
+
 split-gpg2 (0.1) experimental; urgency=low
 
   * Initial beta release.
