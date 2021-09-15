@@ -847,7 +847,8 @@ class GpgServer:
         await self.send_agent_command(b'PKSIGN', args)
 
     async def command_GETINFO(self, untrusted_args: Optional[bytes]) -> None:
-        if not untrusted_args in [b'version', b'restricted']:
+        # XXX should s2k_count get a fake response instead?
+        if not untrusted_args in [b'version', b'restricted', b's2k_count']:
             raise Filtered
         args = untrusted_args
 
