@@ -448,6 +448,7 @@ class GpgServer:
             b'lc-ctype': (OptionHandlingType.fake, b'OK'),
             b'lc-messages': (OptionHandlingType.fake, b'OK'),
             b'putenv': (OptionHandlingType.fake, b'OK'),
+            b'pinentry-mode': (OptionHandlingType.fake, b'ERR 67108924 Not supported <GPG Agent>'),
             b'allow-pinentry-notify': (OptionHandlingType.verify, None),
             b'agent-awareness': (OptionHandlingType.verify, b'2.1.0')
         }
