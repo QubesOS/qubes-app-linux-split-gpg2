@@ -347,7 +347,7 @@ class GpgServer:
             raise StartFailed from e
 
         dirs = subprocess.check_output(
-            ['gpgconf', *self.homedir_opts(), '--list-dirs'])
+            ['gpgconf', *self.homedir_opts(), '--list-dirs', '-o/dev/stdout'])
         if self.allow_keygen:
             socket_field = b'agent-socket:'
         else:
