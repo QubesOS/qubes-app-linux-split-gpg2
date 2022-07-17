@@ -1291,8 +1291,8 @@ def open_stdinout_connection(*,
     return reader, writer
 
 
-def load_config_files(client_domain) -> configparser.SectionProxy:
-    config_dirs = ['/etc', xdg.BaseDirectory.xdg_config_home]
+def load_config_files(client_domain: str) -> configparser.SectionProxy:
+    config_dirs = ['/etc', xdg.BaseDirectory.xdg_config_home + '/qubes-split-gpg2']
 
     config = configparser.ConfigParser()
     config.read([os.path.join(d, 'qubes-split-gpg2.conf') for d in config_dirs])

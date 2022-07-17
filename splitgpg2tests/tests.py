@@ -63,7 +63,7 @@ Expire-Date: 0
         if 'whonix' in self.template:
             self.backend.run("date -s +10min", user="root", wait=True)
 
-        p = self.backend.run('mkdir .config; cat > .config/qubes-split-gpg2.conf', passio_popen=True)
+        p = self.backend.run('mkdir .config; cat > .config/qubes-split-gpg2/qubes-split-gpg2.conf', passio_popen=True)
         p.communicate(
                 b'[DEFAULT]\n'
                 b'autoaccept = yes\n'
@@ -210,7 +210,7 @@ class TC_00_Direct(SplitGPGBase):
         self.assertIn('\ngpg: Good signature from', verification_result.decode())
 
     def test_050_generate(self):
-        p = self.backend.run('cat >> .config/qubes-split-gpg2.conf', passio_popen=True)
+        p = self.backend.run('cat >> .config/qubes-split-gpg2/qubes-split-gpg2.conf', passio_popen=True)
         p.communicate(b'allow_keygen = yes\n')
 
         # see comment in setUp()
