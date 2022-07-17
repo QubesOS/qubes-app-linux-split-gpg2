@@ -1319,6 +1319,7 @@ def load_config_files(client_domain: str) -> configparser.SectionProxy:
 
 
 def main() -> None:
+    os.umask(0o0077)
     client_domain = os.environ['QREXEC_REMOTE_DOMAIN']
     config = load_config_files(client_domain)
 
