@@ -30,7 +30,6 @@ from unittest import TestCase
 from unittest import mock
 from . import GpgServer
 
-
 class SimplePinentry(asyncio.Protocol):
     def __init__(self, cmd_mock) -> None:
         super().__init__()
@@ -72,6 +71,8 @@ class TC_Server(TestCase):
         self.notify_mock = mock.patch.object(
             gpg_server, 'notify').start()
         gpg_server.log_io_enable = True
+        gpg_server.gnupghome = os.environ['GNUPGHOME']
+        gpg_server.config_loaded = True
         asyncio.ensure_future(gpg_server.run())
 
     def start_dummy_pinentry(self):

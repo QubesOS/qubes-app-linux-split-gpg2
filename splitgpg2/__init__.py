@@ -210,6 +210,7 @@ class GpgServer:
     commands: Dict[bytes, 'NoneCallback']
     client_domain: str
     seen_data: bool
+    config_loaded: bool
     keygrip_map: Dict[bytes, Union[KeyInfo, SubKeyInfo]]
     notify_on_disconnect: Set[Awaitable[object]]
     gnupghome: Optional[str]
@@ -231,7 +232,7 @@ class GpgServer:
         #: signal those Futures when connection is terminated
         self.notify_on_disconnect = set()
         self.log_io_enable = False
-        self.gnupghome = None
+        self.gnupghome = xdg.BaseDirectory.xdg_config_home + '/qubes-split-gpg2/gnupg'
 
         self.client_reader = reader
         self.client_writer = writer
@@ -239,14 +240,15 @@ class GpgServer:
         self.commands = self.default_commands()
         self.options = self.default_options()
         self.hash_algos = self.default_hash_algos()
+        self.keygrip_map = {}
 
         self.log = logging.getLogger('splitgpg2.Server')
         self.agent_socket_path = None
         self.agent_reader: Optional[asyncio.StreamReader] = None
         self.agent_writer: Optional[asyncio.StreamWriter] = None
 
-        self.update_keygrip_map()
         self.seen_data = False
+        self.config_loaded = False
 
         if debug_log:
             handler = logging.FileHandler(debug_log)
@@ -283,6 +285,7 @@ class GpgServer:
         raise ValueError(value)
 
     def load_config(self, config) -> None:
+        self.config_loaded = True
         default_autoaccept = config.get('autoaccept', 'no')
         for timer_name in TIMER_NAMES:
             timer_value = config.get(timer_name + '_autoaccept',
@@ -350,6 +353,7 @@ class GpgServer:
         return []
 
     async def connect_agent(self) -> None:
+        assert self.config_loaded, 'Config not loaded?'
         try:
             subprocess.check_call(
                 ['gpgconf', *self.homedir_opts(), '--launch', 'gpg-agent'])
@@ -781,7 +785,6 @@ class GpgServer:
             elif fields[0] == b"ssb":
                 assert primary_key is not None, 'subkey before primary key?'
                 subkey = SubKeyInfo(fields[11], primary_key)
-                primary_key.subkeys.append(subkey)
             elif fields[0] == b"fpr":
                 assert primary_key is not None, 'bad output from GnuPG'
                 if subkey is None:
