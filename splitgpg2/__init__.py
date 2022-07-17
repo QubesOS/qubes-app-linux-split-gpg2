@@ -123,25 +123,35 @@ class HashAlgo:
         self.name = name
         self.len = length
 
-class KeyInfo:
-    subkeys: List['SubKeyInfo']
+class BaseKeyInfo:
+    """
+    Base class for KeyInfo and SubKeyInfo.  Do not use as a type for variables;
+    use ``Union[KeyInfo, SubKeyInfo]`` instead.
+    """
     fingerprint: Optional[bytes]
     keygrip: Optional[bytes]
-    first_uid: Optional[bytes]
-    def __init__(self) -> None:
+    capabilities: bytes
+    __slots__ = ('fingerprint', 'keygrip', 'capabilities')
+    def __init__(self, capabilities: bytes) -> None:
         self.fingerprint = None
         self.keygrip = None
+        self.capabilities = capabilities
+
+class SubKeyInfo(BaseKeyInfo):
+    key: 'KeyInfo'
+    __slots__ = ('key',)
+    def __init__(self, capabilities: bytes, key: 'KeyInfo'):
+        super().__init__(capabilities)
+        self.key = key
+
+class KeyInfo(BaseKeyInfo):
+    subkeys: List[SubKeyInfo]
+    first_uid: Optional[bytes]
+    __slots__ = ('subkeys', 'first_uid')
+    def __init__(self, capabilities: bytes):
+        super().__init__(capabilities)
         self.first_uid = None
         self.subkeys = []
-
-class SubKeyInfo:
-    fingerprint: Optional[bytes]
-    keygrip: Optional[bytes]
-    key: Optional[KeyInfo]
-    def __init__(self) -> None:
-        self.fingerprint = None
-        self.keygrip = None
-        self.key = None
 
 @enum.unique
 class ServerState(enum.Enum):
@@ -683,13 +693,16 @@ class GpgServer:
         await self.setkeydesc(args)
 
     async def setkeydesc(self, keygrip: bytes) -> None:
+        key: Union[KeyInfo, SubKeyInfo]
         info = self.keygrip_map.get(keygrip)
         if info is None:
             self.update_keygrip_map()
             info = self.keygrip_map.get(keygrip)
 
         if info is None:
-            desc = b'Keygrip: %s' % keygrip
+            if not self.allow_keygen:
+                raise Filtered
+            desc = b'Keygrip: ' + keygrip
         else:
             if isinstance(info, SubKeyInfo):
                 key = info.key
@@ -751,39 +764,40 @@ class GpgServer:
             'gpg', *self.homedir_opts(), '--list-secret-keys', '--with-colons'
         ])
         keys: List[KeyInfo] = []
-        key: Optional[KeyInfo] = None
+        primary_key: Optional[KeyInfo] = None
         subkey: Optional[SubKeyInfo] = None
         for line in out.split(b"\n"):
             fields = line.split(b":")
             if fields[0] in [b"sec", b"ssb", b""]:
                 if subkey is not None:
-                    assert key is not None, 'bad output from GnuPG'
-                    subkey.key = key
-                    key.subkeys.append(subkey)
+                    assert primary_key is not None, 'bad output from GnuPG'
+                    subkey.key = primary_key
+                    primary_key.subkeys.append(subkey)
                     subkey = None
-            if fields[0] in [b"sec", b""] and key is not None:
-                keys.append(key)
-
+            if fields[0] in [b"sec", b""] and primary_key is not None:
+                keys.append(primary_key)
             if fields[0] == b"sec":
-                key = KeyInfo()
+                primary_key = KeyInfo(fields[11])
             elif fields[0] == b"ssb":
-                subkey = SubKeyInfo()
+                assert primary_key is not None, 'subkey before primary key?'
+                subkey = SubKeyInfo(fields[11], primary_key)
+                primary_key.subkeys.append(subkey)
             elif fields[0] == b"fpr":
-                assert key is not None, 'bad output from GnuPG'
+                assert primary_key is not None, 'bad output from GnuPG'
                 if subkey is None:
-                    key.fingerprint = fields[9]
+                    primary_key.fingerprint = fields[9]
                 else:
                     subkey.fingerprint = fields[9]
             elif fields[0] == b"grp":
-                assert key is not None, 'bad output from GnuPG'
+                assert primary_key is not None, 'bad output from GnuPG'
                 if subkey is None:
-                    key.keygrip = fields[9]
+                    primary_key.keygrip = fields[9]
                 else:
                     subkey.keygrip = fields[9]
             elif fields[0] == b"uid":
-                assert key is not None, 'bad output from GnuPG'
-                if key.first_uid is None:
-                    key.first_uid = self.estream_unescape(fields[9])
+                assert primary_key is not None, 'uid before primary key?'
+                if primary_key.first_uid is None:
+                    primary_key.first_uid = self.estream_unescape(fields[9])
 
         new_keygrip_map: Dict[bytes, Union[KeyInfo, SubKeyInfo]] = {}
         for key in keys:
