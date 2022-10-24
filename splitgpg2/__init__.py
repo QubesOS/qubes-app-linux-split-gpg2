@@ -347,7 +347,7 @@ class GpgServer:
             raise StartFailed from e
 
         dirs = subprocess.check_output(
-            ['gpgconf', *self.homedir_opts(), '--list-dirs'])
+            ['gpgconf', *self.homedir_opts(), '--list-dirs', '-o/dev/stdout'])
         if self.allow_keygen:
             socket_field = b'agent-socket:'
         else:
@@ -449,6 +449,7 @@ class GpgServer:
             b'lc-ctype': (OptionHandlingType.fake, b'OK'),
             b'lc-messages': (OptionHandlingType.fake, b'OK'),
             b'putenv': (OptionHandlingType.fake, b'OK'),
+            b'pinentry-mode': (OptionHandlingType.fake, b'ERR 67108924 Not supported <GPG Agent>'),
             b'allow-pinentry-notify': (OptionHandlingType.verify, None),
             b'agent-awareness': (OptionHandlingType.verify, b'2.1.0')
         }
@@ -847,7 +848,8 @@ class GpgServer:
         await self.send_agent_command(b'PKSIGN', args)
 
     async def command_GETINFO(self, untrusted_args: Optional[bytes]) -> None:
-        if not untrusted_args in [b'version', b'restricted']:
+        # XXX should s2k_count get a fake response instead?
+        if not untrusted_args in [b'version', b'restricted', b's2k_count']:
             raise Filtered
         args = untrusted_args
 

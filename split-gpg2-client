@@ -9,16 +9,23 @@ for d in /etc "${XDG_CONFIG_HOME:-$HOME/.config}"; do
     fi
 done
 
+# An empty or unset $SPLIT_GPG2_SERVER_DOMAIN is treated as @default.
 if [[ -z "$SPLIT_GPG2_SERVER_DOMAIN" ]]; then
     SPLIT_GPG2_SERVER_DOMAIN="@default"
+elif [[ ! "$SPLIT_GPG2_SERVER_DOMAIN" =~ ^[A-Za-z@][:0-9A-Za-z_-]*$ ]]; then
+    # Fail now to provide a more useful error message. While
+    # $SPLIT_GPG2_SERVER_DOMAIN is trusted, the error from an invalid value
+    # would not be very helpful.
+    printf '$SPLIT_GPG2_SERVER_DOMAIN (%q) is not a valid qrexec target\n' "$SPLIT_GPG2_SERVER_DOMAIN" >&2
+    exit 1
 fi
 
-agent_socket="$(gpgconf --list-dirs | grep '^agent-socket:' | cut -d ':' -f 2)"
+agent_socket="$(gpgconf --list-dirs -o/dev/stdout | grep '^agent-socket:/[A-Za-z0-9/+_.-]+$' | cut -d ':' -f 2)"
 rc="$?"
 if [[ "$rc" -ne 0 ]] || [[ -z "$agent_socket" ]]; then
     echo "Failed to find gpg-agent socket path" >&2
     exit 1
 fi
 
-socat "unix-listen:$agent_socket,fork,unlink-early" \
+exec socat "unix-listen:'$agent_socket',fork,unlink-early" \
     "exec:qrexec-client-vm $SPLIT_GPG2_SERVER_DOMAIN qubes.Gpg2"
