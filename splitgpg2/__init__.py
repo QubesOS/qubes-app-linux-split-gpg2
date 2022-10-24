@@ -436,7 +436,8 @@ class GpgServer:
             b'PKSIGN': self.command_PKSIGN,
             b'GETINFO': self.command_GETINFO,
             b'BYE': self.command_BYE,
-            b'SCD': self.command_SCD
+            b'SCD': self.command_SCD,
+            b'READKEY': self.command_READKEY,
         }
 
     @staticmethod
@@ -868,6 +869,15 @@ class GpgServer:
         self.fake_respond(
             b'ERR %d No SmartCard daemon' % GPGErrorCode.NoSCDaemon)
 
+    async def command_READKEY(self, untrusted_args: Optional[bytes]) -> None:
+        if (not self.allow_keygen) or (untrusted_args is None):
+            raise Filtered
+        if untrusted_args.startswith(b'-- '):
+            untrusted_args = untrusted_args[3:]
+        args = self.verify_keygrip_arguments(1, 1, untrusted_args)
+
+        await self.send_agent_command(b'READKEY', b'-- ' + args)
+
     def get_inquires_for_command(self, command: bytes) -> Dict[bytes, 'ArgCallback']:
         if command == b'GENKEY':
             inquires: Dict[bytes, ArgCallback] = {
@@ -1081,17 +1091,15 @@ class GpgServer:
             sanitize_int(untrusted_bits, 1024, 4096)
 
         def check_curve_flags(untrusted_curve: bytes, untrusted_flags: List[object]) -> None:
-            # Non-Edwards curves are easy; check those first
-            if untrusted_curve in known_other_curves:
-                if untrusted_flags != [b'nocomp']:
-                    raise ValueError('Invalid flags for non-Edwards curve')
+            if untrusted_flags == [b'nocomp']:
+                # Always allowed
                 return
-
-            # Now the Edwards curves
             if untrusted_curve in known_eddsa_curves:
                 allowed_flags = (b'eddsa', b'comp')
             elif untrusted_curve in known_safeecdh_curves:
                 allowed_flags = (b'comp', b'djb-tweak')
+            elif untrusted_curve in known_other_curves:
+                raise ValueError('Invalid flags for non-Edwards curve')
             else:
                 raise ValueError('Unknown elliptic curve')
             if len(untrusted_flags) > 2:
