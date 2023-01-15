@@ -11,6 +11,7 @@ Source0: split-gpg2-%{version}.tar.gz
 
 BuildRequires: make
 BuildRequires: python3-devel
+BuildRequires: python3-setuptools
 
 %description
 split-gpg2 allows you to run the gpg2 client in a different Qubes-Domain than
