@@ -585,7 +585,6 @@ class TC_Config(TestCase):
                             for l in gpgconf_output.splitlines()
                             if l.startswith('agent-socket:')][0]
         self.server_gpghome = self.gpg_dir.name + '/server'
-        os.mkdir(self.server_gpghome, mode=0o700)
 
 
     def tearDown(self) -> None:
