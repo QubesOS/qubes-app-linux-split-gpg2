@@ -20,7 +20,7 @@ elif [[ ! "$SPLIT_GPG2_SERVER_DOMAIN" =~ ^[A-Za-z@][:0-9A-Za-z_-]*$ ]]; then
     exit 1
 fi
 
-agent_socket="$(gpgconf --list-dirs -o/dev/stdout | grep '^agent-socket:/[A-Za-z0-9/+_.-]+$' | cut -d ':' -f 2)"
+agent_socket="$(gpgconf --list-dirs -o/dev/stdout | grep '^agent-socket:/[A-Za-z0-9/+_.-]\+$' | cut -d ':' -f 2)"
 rc="$?"
 if [[ "$rc" -ne 0 ]] || [[ -z "$agent_socket" ]]; then
     echo "Failed to find gpg-agent socket path" >&2
