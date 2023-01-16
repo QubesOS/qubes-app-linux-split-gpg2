@@ -306,6 +306,11 @@ class GpgServer:
                 self.client_domain)
 
         self.gnupghome = config.get('gnupghome', self.gnupghome)
+        if self.gnupghome.startswith('~'):
+            self.gnupghome = os.path.expanduser(self.gnupghome)
+        if not self.gnupghome.startswith('/'):
+            self.log.error('GnuPG home directory %r is not an absolute path!', self.gnupghome)
+            raise ValueError()
 
         # warn about unknown options, to easier spot typos, but don't refuse to
         # start, to allow extensibility
