@@ -322,6 +322,7 @@ class GpgServer:
         for option in config:
             if option not in supported_options:
                 self.log.warning('Unsupported config option: %s', option)
+        self.log.info('Using GnuPG home directory %s', self.gnupghome)
 
     async def run(self) -> None:
         await self.connect_agent()

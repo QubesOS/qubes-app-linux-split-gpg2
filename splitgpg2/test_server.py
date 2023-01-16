@@ -687,7 +687,8 @@ class TC_Config(TestCase):
         gpg_server.load_config(config['DEFAULT'])
         # warns about unsupported option only
         self.assertEquals(gpg_server.log.mock_calls, [
-            mock.call.warning('Unsupported config option: %s', 'no_such_option')
+            mock.call.warning('Unsupported config option: %s', 'no_such_option'),
+            mock.call.info('Using GnuPG home directory %s', gpg_server.gnupghome),
         ])
 
     def test_010_gpghome(self):
