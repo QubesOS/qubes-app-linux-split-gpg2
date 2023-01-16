@@ -329,6 +329,9 @@ class GpgServer:
             if option not in supported_options:
                 self.log.warning('Unsupported config option: %s', option)
         self.log.info('Using GnuPG home directory %s', self.gnupghome)
+        if not os.path.exists(self.gnupghome):
+            self.log.error('GnuPG home directory %s does not exist!', self.gnupghome)
+            raise ValueError()
 
     async def run(self) -> None:
         await self.connect_agent()

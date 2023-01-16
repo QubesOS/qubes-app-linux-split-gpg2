@@ -680,7 +680,8 @@ class TC_Config(TestCase):
         gpg_server = GpgServer(reader, writer, 'server')
         gpg_server.log = mock.Mock()
         config = configparser.ConfigParser()
-        config.read_string("""[DEFAULT]
+        config.read_string(f"""[DEFAULT]
+        gnupghome = {self.server_gpghome}
         autoaccept = no
         no_such_option = 1
         """)
