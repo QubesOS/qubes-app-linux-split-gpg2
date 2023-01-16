@@ -243,6 +243,7 @@ class GpgServer:
         self.keygrip_map = {}
 
         self.log = logging.getLogger('splitgpg2.Server')
+        self.log.setLevel(logging.INFO)
         self.agent_socket_path = None
         self.agent_reader: Optional[asyncio.StreamReader] = None
         self.agent_writer: Optional[asyncio.StreamWriter] = None
