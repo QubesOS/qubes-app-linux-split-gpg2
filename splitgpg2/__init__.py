@@ -222,7 +222,7 @@ class GpgServer:
 
     def __init__(self, reader: asyncio.StreamReader,
                  writer: asyncio.StreamWriter, client_domain: str,
-                 debug_log: str = None):
+                 debug_log: Optional[str] = None):
 
         # configuration options:
         self.verbose_notifications = False
