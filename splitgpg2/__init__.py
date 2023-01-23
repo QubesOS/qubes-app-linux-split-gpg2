@@ -322,6 +322,12 @@ class GpgServer:
         for option in config:
             if option not in supported_options:
                 self.log.warning('Unsupported config option: %s', option)
+        self.log.info('Using GnuPG home directory %s', self.gnupghome)
+        try:
+            subprocess.check_call(('mkdir', '-pm0700', '--', self.gnupghome))
+        except subprocess.CalledProcessError:
+            self.log.error('GnuPG home directory %s cannot be created!', self.gnupghome)
+            raise ValueError()
 
     async def run(self) -> None:
         await self.connect_agent()
