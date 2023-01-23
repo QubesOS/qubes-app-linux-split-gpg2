@@ -328,6 +328,16 @@ class GpgServer:
         except subprocess.CalledProcessError:
             self.log.error('GnuPG home directory %s cannot be created!', self.gnupghome)
             raise ValueError()
+        if 'isolated_gnupghome_dirs' not in config:
+            xferflags = ('gpg', '--no-armor', '--batch', '--with-colons', '--no-tty', '--disable-dirmngr')
+            with subprocess.Popen(xferflags + ('--export-secret-subkeys',), stdout=subprocess.PIPE, stdin=subprocess.DEVNULL) as exporter, \
+                 subprocess.Popen(xferflags + ('--import',), stdin=exporter.stdout) as importer:
+                pass
+            if exporter.returncode or importer.returncode:
+                self.log.warning('Unable to export keys.  If your key has a '
+                                 'passphrase, you might want to save it to a '
+                                 'file and use passphrase-file and '
+                                 'pinentry-mode loopback in gpg.conf')
 
     async def run(self) -> None:
         await self.connect_agent()
