@@ -35,6 +35,7 @@ import enum
 import logging
 import os
 import pathlib
+import pwd
 import re
 import signal
 import socket
@@ -217,6 +218,7 @@ class GpgServer:
     agent_socket_path: Optional[str]
     agent_reader: Optional[asyncio.StreamReader]
     agent_writer: Optional[asyncio.StreamWriter]
+    auto_sync: bool
 
     cache_nonce_regex: re.Pattern[bytes] = re.compile(rb'\A[0-9A-F]{24}\Z')
 
@@ -249,6 +251,7 @@ class GpgServer:
 
         self.seen_data = False
         self.config_loaded = False
+        self.auto_sync = True
 
         if debug_log:
             handler = logging.FileHandler(debug_log)
@@ -298,6 +301,8 @@ class GpgServer:
 
         self.allow_keygen = self._parse_bool_val(
             config.get('allow_keygen', 'no'), 'allow_keygen')
+        self.auto_sync = self._parse_bool_val(
+            config.get('auto_sync', 'yes'), 'auto_sync')
 
         if 'isolated_gnupghome_dirs' in config:
             self.gnupghome = os.path.join(
@@ -315,6 +320,7 @@ class GpgServer:
             'verbose_notifications',
             'allow_keygen',
             'gnupghome',
+            'auto_sync',
             'isolated_gnupghome_dirs',
             # handled in main()
             'debug_log',
@@ -323,15 +329,35 @@ class GpgServer:
             if option not in supported_options:
                 self.log.warning('Unsupported config option: %s', option)
         self.log.info('Using GnuPG home directory %s', self.gnupghome)
-        try:
-            subprocess.check_call(('mkdir', '-pm0700', '--', self.gnupghome))
-        except subprocess.CalledProcessError:
-            self.log.error('GnuPG home directory %s cannot be created!', self.gnupghome)
-            raise ValueError()
-        if 'isolated_gnupghome_dirs' not in config:
-            xferflags = ('gpg', '--no-armor', '--batch', '--with-colons', '--no-tty', '--disable-dirmngr')
-            with subprocess.Popen(xferflags + ('--export-secret-subkeys',), stdout=subprocess.PIPE, stdin=subprocess.DEVNULL) as exporter, \
-                 subprocess.Popen(xferflags + ('--import',), stdin=exporter.stdout) as importer:
+        os.makedirs(self.gnupghome, 0o700, exist_ok=True)
+        if self.auto_sync:
+            new_home_directory = os.path.join(self.gnupghome, 'qubes-auto-keyring')
+            try:
+                os.mkdir(new_home_directory, 0o700)
+            except FileExistsError:
+                pass
+            self.gnupghome = new_home_directory
+            default_gnupg_home = os.path.join(pwd.getpwuid(os.getuid()).pw_dir, '.gnupg')
+            stat1 = os.stat(default_gnupg_home)
+            stat2 = os.stat(new_home_directory)
+            if stat1.st_mtime <= stat2.st_mtime:
+                return
+            import shutil
+            shutil.rmtree(new_home_directory)
+            try:
+                os.mkdir(new_home_directory, 0o700)
+            except FileExistsError:
+                pass
+            xferflags = ('gpg', '--no-armor', '--batch', '--with-colons',
+                         '--no-tty', '--disable-dirmngr')
+            export_cmd = xferflags + ('--export-secret-subkeys', '--homedir',
+                                      default_gnupg_home)
+            import_cmd = xferflags + ('--import', '--homedir', self.gnupghome,)
+            with subprocess.Popen(export_cmd,
+                                  stdout=subprocess.PIPE,
+                                  stdin=subprocess.DEVNULL) as exporter, (
+                 subprocess.Popen(import_cmd,
+                                  stdin=exporter.stdout)) as importer:
                 pass
             if exporter.returncode or importer.returncode:
                 self.log.warning('Unable to export keys.  If your key has a '

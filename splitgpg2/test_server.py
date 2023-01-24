@@ -95,7 +95,8 @@ class TC_Server(TestCase):
         super().setUp()
 
         self.counter = 0
-        self.loop = asyncio.get_event_loop()
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
         self.gpg_dir = tempfile.TemporaryDirectory()
         # use separate GNUPGHOME for client and server, to force different
         # sockets
@@ -628,6 +629,7 @@ class TC_Config(TestCase):
             pksign_autoaccept = 300
             verbose_notifications = yes
             allow_keygen = yes
+            auto_sync = no
             """)
         gpg_server = GpgServer(reader, writer, 'testvm')
         gpg_server.load_config(config['client:testvm'])
@@ -646,6 +648,7 @@ class TC_Config(TestCase):
             f"""
             [DEFAULT]
             isolated_gnupghome_dirs = {self.gpg_dir.name}
+            auto_sync = no
             """)
         gpg_server = GpgServer(reader, writer, 'server')
         gpg_server.load_config(config['DEFAULT'])
@@ -682,6 +685,7 @@ class TC_Config(TestCase):
         config = configparser.ConfigParser()
         config.read_string("""[DEFAULT]
         autoaccept = no
+        auto_sync = no
         no_such_option = 1
         """)
         gpg_server.load_config(config['DEFAULT'])
@@ -700,6 +704,7 @@ class TC_Config(TestCase):
             f"""
             [DEFAULT]
             gnupghome = {self.server_gpghome}
+            auto_sync = no
             [client:testvm]
             """)
         self.server = self.loop.run_until_complete(
