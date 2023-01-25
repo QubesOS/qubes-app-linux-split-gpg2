@@ -218,7 +218,7 @@ class GpgServer:
     agent_socket_path: Optional[str]
     agent_reader: Optional[asyncio.StreamReader]
     agent_writer: Optional[asyncio.StreamWriter]
-    auto_sync: bool
+    auto_keyring_sync: bool
 
     cache_nonce_regex: re.Pattern[bytes] = re.compile(rb'\A[0-9A-F]{24}\Z')
 
@@ -251,7 +251,7 @@ class GpgServer:
 
         self.seen_data = False
         self.config_loaded = False
-        self.auto_sync = True
+        self.auto_keyring_sync = True
 
         if debug_log:
             handler = logging.FileHandler(debug_log)
@@ -301,8 +301,8 @@ class GpgServer:
 
         self.allow_keygen = self._parse_bool_val(
             config.get('allow_keygen', 'no'), 'allow_keygen')
-        self.auto_sync = self._parse_bool_val(
-            config.get('auto_sync', 'yes'), 'auto_sync')
+        self.auto_keyring_sync = self._parse_bool_val(
+            config.get('auto_keyring_sync', 'yes'), 'auto_keyring_sync')
 
         if 'isolated_gnupghome_dirs' in config:
             self.gnupghome = os.path.join(
@@ -320,7 +320,7 @@ class GpgServer:
             'verbose_notifications',
             'allow_keygen',
             'gnupghome',
-            'auto_sync',
+            'auto_keyring_sync',
             'isolated_gnupghome_dirs',
             # handled in main()
             'debug_log',
@@ -330,7 +330,7 @@ class GpgServer:
                 self.log.warning('Unsupported config option: %s', option)
         self.log.info('Using GnuPG home directory %s', self.gnupghome)
         os.makedirs(self.gnupghome, 0o700, exist_ok=True)
-        if self.auto_sync:
+        if self.auto_keyring_sync:
             new_home_directory = os.path.join(self.gnupghome, 'qubes-auto-keyring')
             try:
                 os.mkdir(new_home_directory, 0o700)
