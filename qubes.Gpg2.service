@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# Unset GNUPGHOME; the default (which might be set in the user's login
-# scripts) is not what is wanted.
-unset GNUPGHOME
 for d in /etc "${XDG_CONFIG_HOME:-$HOME/.config}"; do
     rc_file="$d/split-gpg2-rc"
     if [ -r "$rc_file" ]; then

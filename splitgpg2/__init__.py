@@ -234,7 +234,12 @@ class GpgServer:
         #: signal those Futures when connection is terminated
         self.notify_on_disconnect = set()
         self.log_io_enable = False
-        self.gnupghome = xdg.BaseDirectory.xdg_config_home + '/qubes-split-gpg2/gnupg'
+        try:
+            gnupghome = os.environ['GNUPGHOME']
+        except KeyError:
+            gnupghome = os.path.join(pwd.getpwuid(os.getuid()).pw_name,
+                                     '.gnupg')
+        self.gnupghome = gnupghome
 
         self.client_reader = reader
         self.client_writer = writer
