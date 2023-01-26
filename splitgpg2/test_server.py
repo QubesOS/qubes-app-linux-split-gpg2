@@ -158,35 +158,31 @@ class TC_Server(TestCase):
             self.fail('gpg-connect-agent exit with {}: {}{}'.format(
                 p.returncode, stdout.decode(), stderr.decode()))
 
-    def generate_key(self, ty, subkey_ty, key_param, subkey_param, grip=None):
+    def generate_key(self, ty, subkey_ty, key_param, subkey_param, grip=None, *, subkey_usage='encrypt', client=True):
         fpr_re = re.compile(rb'\A[0-9A-F]{40}\Z')
         email = 'a' + str(self.counter) + self.key_uid
         self.counter += 1
         handle = base64.b64encode(os.urandom(32)).decode('ascii', 'strict')
-        keygen_params = """\
-Key-Type: {}
-Key-{}: {}
+        def v(p):
+            return (('Length' if isinstance(p, int) else 'Curve')
+                    if grip is None else 'Grip')
+        keygen_params = f"""\
+Key-Type: {ty}
+Key-{v(key_param)}: {key_param if grip is None else grip[0].decode()}
 Key-Usage: cert,sign
-Handle: {}
-Subkey-Type: {}
-Subkey-{}: {}
-Subkey-Usage: encrypt
+Handle: {handle}
+Subkey-Type: {subkey_ty}
+Subkey-{v(subkey_param)}: {subkey_param if grip is None else grip[1].decode()}
+Subkey-Usage: {subkey_usage}
 Name-Real: Joe Tester
-Name-Email: {}
+Name-Email: {email}
 Expire-Date: 0
 %no-protection
 %commit
-""".format(ty,
-           ('Length' if isinstance(key_param, int) else 'Curve')
-           if grip is None else 'Grip', key_param if grip is None else grip[0].decode(),
-           handle,
-           subkey_ty,
-           ('Length' if isinstance(key_param, int) else 'Curve')
-           if grip is None else 'Grip', key_param if grip is None else grip[1].decode(),
-           email)
+"""
         p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
             'gpg', '--batch', '--status-fd=1', '--gen-key', '--expert',
-            env=self.test_environ,
+            env=self.test_environ if client else os.environ,
             stderr=subprocess.PIPE, stdout=subprocess.PIPE,
             stdin=subprocess.PIPE))
         stdout, stderr = self.loop.run_until_complete(p.communicate(
@@ -195,7 +191,8 @@ Expire-Date: 0
             self.fail('gpg2 --gen-key exit with {}: {}{}'.format(
                 p.returncode, stdout.decode(), stderr.decode()))
 
-        self.request_timer_mock.assert_called_with('PKSIGN')
+        if client:
+            self.request_timer_mock.assert_called_with('PKSIGN')
         assert stdout.endswith(b'\n')
         fpr = None
         for status_line in stdout[:-1].split(b'\n'):
@@ -209,22 +206,23 @@ Expire-Date: 0
             self.assertTrue(fpr_re.match(fpr))
         self.assertIsNot(fpr, None)
         # "export" public key to server keyring
-        shutil.copy(self.gpg_dir.name + '/pubring.kbx',
-                    self.gpg_dir.name + '/server/pubring.kbx')
-        shutil.copy(self.gpg_dir.name + '/trustdb.gpg',
-                    self.gpg_dir.name + '/server/trustdb.gpg')
-        # verify the key is there bypassing splitgpg2, test one thing at
-        # a time
-        p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
-            b'gpg', b'--with-colons', b'--with-keygrip', b'-K', b'0x' + fpr,
-            stderr=subprocess.PIPE, stdout=subprocess.PIPE))
-        stdout, stderr = self.loop.run_until_complete(p.communicate())
-        if p.returncode:
-            self.fail('generated key not found: {}{}'.format(
-                stdout.decode(), stderr.decode()))
-        self.assertIn(b'sec:u:', stdout)
-        self.assertIn(self.key_uid.encode('ascii', 'strict'), stdout)
-        self.assertTrue(stdout.endswith(b'\n'))
+        if client:
+            shutil.copy(self.gpg_dir.name + '/pubring.kbx',
+                        self.gpg_dir.name + '/server/pubring.kbx')
+            shutil.copy(self.gpg_dir.name + '/trustdb.gpg',
+                        self.gpg_dir.name + '/server/trustdb.gpg')
+            # verify the key is there bypassing splitgpg2, test one thing at
+            # a time
+            p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
+                b'gpg', b'--with-colons', b'--with-keygrip', b'-K', b'0x' + fpr,
+                stderr=subprocess.PIPE, stdout=subprocess.PIPE))
+            stdout, stderr = self.loop.run_until_complete(p.communicate())
+            if p.returncode:
+                self.fail('generated key not found: {}{}'.format(
+                    stdout.decode(), stderr.decode()))
+            self.assertIn(b'sec:u:', stdout)
+            self.assertIn(self.key_uid.encode('ascii', 'strict'), stdout)
+            self.assertTrue(stdout.endswith(b'\n'))
         return (fpr, stdout)
 
     def test_001_genkey(self):
