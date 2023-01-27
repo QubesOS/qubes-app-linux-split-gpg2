@@ -218,7 +218,7 @@ class GpgServer:
     agent_socket_path: Optional[str]
     agent_reader: Optional[asyncio.StreamReader]
     agent_writer: Optional[asyncio.StreamWriter]
-    auto_keyring_sync: bool
+    source_keyring_dir: Optional[str]
 
     cache_nonce_regex: re.Pattern[bytes] = re.compile(rb'\A[0-9A-F]{24}\Z')
 
@@ -234,12 +234,7 @@ class GpgServer:
         #: signal those Futures when connection is terminated
         self.notify_on_disconnect = set()
         self.log_io_enable = False
-        try:
-            gnupghome = os.environ['GNUPGHOME']
-        except KeyError:
-            gnupghome = os.path.join(pwd.getpwuid(os.getuid()).pw_name,
-                                     '.gnupg')
-        self.gnupghome = gnupghome
+        self.gnupghome = xdg.BaseDirectory.xdg_config_home + '/qubes-split-gpg2/gnupg'
 
         self.client_reader = reader
         self.client_writer = writer
@@ -256,7 +251,6 @@ class GpgServer:
 
         self.seen_data = False
         self.config_loaded = False
-        self.auto_keyring_sync = True
 
         if debug_log:
             handler = logging.FileHandler(debug_log)
@@ -306,8 +300,19 @@ class GpgServer:
 
         self.allow_keygen = self._parse_bool_val(
             config.get('allow_keygen', 'no'), 'allow_keygen')
-        self.auto_keyring_sync = self._parse_bool_val(
-            config.get('auto_keyring_sync', 'yes'), 'auto_keyring_sync')
+        source_keyring_dir = config.get('source_keyring_dir', None)
+        if source_keyring_dir != 'no':
+            if source_keyring_dir is None:
+                source_keyring_dir = os.getenv('GNUPGHOME')
+            if source_keyring_dir is None:
+                source_keyring_dir = (pwd.getpwuid(os.getuid()).pw_dir +
+                                      '/.gnupg')
+            if not source_keyring_dir.startswith('/'):
+                raise ValueError('Source keyring directory {!r} is not '
+                                 'absolute!'.format(source_keyring_dir))
+            self.source_keyring_dir = source_keyring_dir
+        else:
+            self.source_keyring_dir = None
 
         if 'isolated_gnupghome_dirs' in config:
             self.gnupghome = os.path.join(
@@ -325,7 +330,7 @@ class GpgServer:
             'verbose_notifications',
             'allow_keygen',
             'gnupghome',
-            'auto_keyring_sync',
+            'source_keyring_dir',
             'isolated_gnupghome_dirs',
             # handled in main()
             'debug_log',
@@ -335,15 +340,16 @@ class GpgServer:
                 self.log.warning('Unsupported config option: %s', option)
         self.log.info('Using GnuPG home directory %s', self.gnupghome)
         os.makedirs(self.gnupghome, 0o700, exist_ok=True)
-        if self.auto_keyring_sync:
-            new_home_directory = os.path.join(self.gnupghome, 'qubes-auto-keyring')
+        if self.source_keyring_dir is not None:
+            new_home_directory = self.gnupghome + '/qubes-auto-keyring'
             try:
                 os.mkdir(new_home_directory, 0o700)
             except FileExistsError:
                 pass
             self.gnupghome = new_home_directory
-            default_gnupg_home = os.path.join(pwd.getpwuid(os.getuid()).pw_dir, '.gnupg')
-            stat1 = os.stat(default_gnupg_home)
+            if source_keyring_dir == new_home_directory:
+                return
+            stat1 = os.stat(source_keyring_dir)
             stat2 = os.stat(new_home_directory)
             if stat1.st_mtime <= stat2.st_mtime:
                 return
@@ -356,7 +362,7 @@ class GpgServer:
             xferflags = ('gpg', '--no-armor', '--batch', '--with-colons',
                          '--no-tty', '--disable-dirmngr')
             export_cmd = xferflags + ('--export-secret-subkeys', '--homedir',
-                                      default_gnupg_home)
+                                      self.source_keyring_dir)
             import_cmd = xferflags + ('--import', '--homedir', self.gnupghome,)
             with subprocess.Popen(export_cmd,
                                   stdout=subprocess.PIPE,

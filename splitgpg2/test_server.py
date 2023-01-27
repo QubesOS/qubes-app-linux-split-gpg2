@@ -627,13 +627,12 @@ class TC_Config(TestCase):
             pksign_autoaccept = 300
             verbose_notifications = yes
             allow_keygen = yes
-            auto_keyring_sync = no
             """)
         gpg_server = GpgServer(reader, writer, 'testvm')
         gpg_server.load_config(config['client:testvm'])
         self.assertTrue(gpg_server.allow_keygen)
         self.assertTrue(gpg_server.verbose_notifications)
-        self.assertEqual(gpg_server.gnupghome, self.server_gpghome)
+        self.assertEqual(gpg_server.gnupghome, self.server_gpghome + '/qubes-auto-keyring')
         self.assertEqual(gpg_server.timer_delay['PKSIGN'], 300)
         self.assertEqual(gpg_server.timer_delay['PKDECRYPT'], -1)
 
@@ -646,11 +645,10 @@ class TC_Config(TestCase):
             f"""
             [DEFAULT]
             isolated_gnupghome_dirs = {self.gpg_dir.name}
-            auto_keyring_sync = no
             """)
         gpg_server = GpgServer(reader, writer, 'server')
         gpg_server.load_config(config['DEFAULT'])
-        self.assertEqual(gpg_server.gnupghome, self.server_gpghome)
+        self.assertEqual(gpg_server.gnupghome, self.server_gpghome + '/qubes-auto-keyring')
 
     def test_002_invalid(self):
         reader = mock.Mock()
@@ -683,14 +681,14 @@ class TC_Config(TestCase):
         config = configparser.ConfigParser()
         config.read_string("""[DEFAULT]
         autoaccept = no
-        auto_keyring_sync = no
         no_such_option = 1
         """)
         gpg_server.load_config(config['DEFAULT'])
         # warns about unsupported option only
         self.assertEquals(gpg_server.log.mock_calls, [
             mock.call.warning('Unsupported config option: %s', 'no_such_option'),
-            mock.call.info('Using GnuPG home directory %s', gpg_server.gnupghome),
+            mock.call.info('Using GnuPG home directory %s',
+                           gpg_server.gnupghome[:-len('/qubes-auto-keyring')]),
         ])
 
     def test_010_gpghome(self):
@@ -702,7 +700,6 @@ class TC_Config(TestCase):
             f"""
             [DEFAULT]
             gnupghome = {self.server_gpghome}
-            auto_keyring_sync = no
             [client:testvm]
             """)
         self.server = self.loop.run_until_complete(
@@ -711,8 +708,8 @@ class TC_Config(TestCase):
                 self.socket_path))
 
         p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
-            'gpg', '--with-colons', '-K', self.key_uid,
-            env=self.test_environ,
+            'gpg', '--with-colons', f'--homedir={self.server_gpghome}',
+            '-K', '--', self.key_uid,
             stderr=subprocess.PIPE, stdout=subprocess.PIPE))
         stdout, stderr = self.loop.run_until_complete(p.communicate())
         if p.returncode:
