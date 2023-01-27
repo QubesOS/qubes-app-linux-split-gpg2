@@ -495,7 +495,7 @@ Expire-Date: 0
 
     def test_010_genkey_deny(self):
         keygen_params = """Key-Type: EDDSA
-Key-Curve: ed25519
+Key-Curve: Ed25519
 Name-Real: Joe Tester
 Name-Email: {}
 %no-protection
@@ -552,9 +552,12 @@ Name-Email: {}
         if not p.returncode:
             self.fail('Key generation did not fail')
 
-
 class TC_Config(TestCase):
     key_uid = 'user@localhost'
+
+    def __init__(self, *args, **kwargs):
+        asyncio.set_event_loop(asyncio.new_event_loop())
+        super().__init__(*args, **kwargs)
 
     def setup_server(self, config, reader, writer):
         gpg_server = GpgServer(reader, writer, 'testvm')
@@ -571,6 +574,7 @@ class TC_Config(TestCase):
 
         # tests assume certain responses - force specific locale
         os.environ['LC_ALL'] = 'C'
+        asyncio.set_event_loop(asyncio.new_event_loop())
         self.loop = asyncio.get_event_loop()
         self.gpg_dir = tempfile.TemporaryDirectory()
         # use separate GNUPGHOME for client and server, to force different
@@ -685,7 +689,7 @@ class TC_Config(TestCase):
         """)
         gpg_server.load_config(config['DEFAULT'])
         # warns about unsupported option only
-        self.assertEquals(gpg_server.log.mock_calls, [
+        self.assertEqual(gpg_server.log.mock_calls, [
             mock.call.warning('Unsupported config option: %s', 'no_such_option'),
             mock.call.info('Using GnuPG home directory %s',
                            gpg_server.gnupghome[:-len('/qubes-auto-keyring')]),
@@ -717,3 +721,59 @@ class TC_Config(TestCase):
                 stdout.decode(), stderr.decode()))
         self.assertIn(b'sec:u:', stdout)
         self.assertIn(self.key_uid.encode(), stdout)
+
+    def test_013_primary_key_not_exported(self) -> None:
+        """
+        Test that secret subkeys, but not primary keys, are exported.
+        """
+        keygen_params = """Key-Type: EdDSA
+Key-Curve: Ed25519
+Key-Usage: cert
+Subkey-Type: EdDSA
+Subkey-Curve: Ed25519
+Subkey-Usage: sign
+Name-Real: Joe Tester
+Name-Email: user@localhost
+%no-protection
+%commit
+""".format(self.key_uid)
+        p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
+            'gpg', '--quiet', '--batch', '--with-colons',
+            '--gen-key', '--homedir', self.gpg_dir.name, env=self.test_environ,
+            stdin=subprocess.PIPE))
+        stdout, stderr = self.loop.run_until_complete(p.communicate(
+            input=keygen_params.encode()))
+        if p.returncode:
+            self.fail('key generation failed')
+        os.mkdir(self.gpg_dir.name + '/test-dir', 0o700)
+        reader = mock.Mock()
+        writer = mock.Mock()
+        gpg_server = GpgServer(reader, writer, 'server')
+        gpg_server.log = mock.Mock()
+        config = configparser.ConfigParser()
+        # configparser allows indented options
+        config.read_string(
+            f"""
+            [DEFAULT]
+            source_keyring_dir = {self.gpg_dir.name}
+            gnupghome = {self.gpg_dir.name}/test-dir
+            """)
+        gpg_server.load_config(config['DEFAULT'])
+        self.assertEqual(gpg_server.source_keyring_dir, self.gpg_dir.name)
+        self.assertEqual(gpg_server.gnupghome, f'{self.gpg_dir.name}/test-dir/qubes-auto-keyring')
+        p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
+                'gpg', '--quiet', '--batch', '--no-tty', '--with-colons',
+                '--homedir', gpg_server.gnupghome,
+                '--list-secret-keys',
+                stderr=subprocess.PIPE, stdout=subprocess.PIPE,
+                stdin=subprocess.DEVNULL))
+        stdout, stderr = self.loop.run_until_complete(p.communicate())
+        if p.returncode:
+            self.fail('could not list keys')
+        found_subkey = False
+        for i in stdout.decode('ascii', 'strict').split('\n'):
+            if i.startswith('sec:'):
+                self.assertEqual(i.split(':')[14], '#', 'non-stub secret key exported')
+            if i.startswith('ssb:-:'):
+                found_subkey = True
+        self.assertTrue(found_subkey, f'Subkey not exported: not found in {stdout.decode()}')

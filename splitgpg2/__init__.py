@@ -345,13 +345,12 @@ class GpgServer:
             try:
                 os.mkdir(new_home_directory, 0o700)
             except FileExistsError:
-                pass
+                stat1 = os.stat(source_keyring_dir)
+                stat2 = os.stat(new_home_directory)
+                if stat1.st_mtime <= stat2.st_mtime:
+                    return
             self.gnupghome = new_home_directory
             if source_keyring_dir == new_home_directory:
-                return
-            stat1 = os.stat(source_keyring_dir)
-            stat2 = os.stat(new_home_directory)
-            if stat1.st_mtime <= stat2.st_mtime:
                 return
             import shutil
             shutil.rmtree(new_home_directory)
