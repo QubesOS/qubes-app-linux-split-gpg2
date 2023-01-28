@@ -45,5 +45,5 @@ checks:mypy:
     - pip3 install --quiet -r ci/requirements.txt
   script:
     - PATH=$PATH:$HOME/.local/bin
-    - mypy splitgpg2
+    - mypy --strict splitgpg2
 

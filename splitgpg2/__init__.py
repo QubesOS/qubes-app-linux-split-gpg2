@@ -50,7 +50,7 @@ import xdg.BaseDirectory  # type: ignore
 if TYPE_CHECKING:
     from typing_extensions import Protocol
     from typing import TypeAlias
-    SExpr: TypeAlias = Union[Sequence[Sequence[object]], bytes]
+    SExpr: TypeAlias = Union[List['SExpr'], bytes]
     class ArgCallback(Protocol):
         def __call__(self, *, untrusted_args: bytes) -> Coroutine[object, object, bool]:
             pass
@@ -1087,14 +1087,14 @@ class GpgServer:
     @classmethod
     def check_letter_sexp(cls,
                           start_string: bytes,
-                          untrusted_sexp: 'SExpr') -> Union[bytes, 'SExpr']:
+                          untrusted_sexp: 'SExpr') -> 'SExpr':
         """
         Check that ``untrusted_sexp`` is a list of length 2 that starts with
         ``start_string``.  Returns the second element.
         """
         if not isinstance(untrusted_sexp, list) or len(untrusted_sexp) != 2:
             raise Filtered
-        untrusted_last: Union[bytes, 'SExpr']
+        untrusted_last: 'SExpr'
         untrusted_first, untrusted_last = untrusted_sexp
         if untrusted_first != start_string:
             raise ValueError('Invalid head of sexp')
@@ -1168,7 +1168,7 @@ class GpgServer:
             untrusted_bits = self.check_letter_bytes(b'nbits', untrusted_sexp)
             sanitize_int(untrusted_bits, 1024, 4096)
 
-        def check_curve_flags(untrusted_curve: bytes, untrusted_flags: List[object]) -> None:
+        def check_curve_flags(untrusted_curve: bytes, untrusted_flags: List['SExpr']) -> None:
             if untrusted_flags == [b'nocomp']:
                 # Always allowed
                 return
@@ -1324,8 +1324,7 @@ class GpgServer:
         if not isinstance(sexpr, list):
             raise ValueError("serialize_sexpr expects a list")
 
-        # MyPy cannot handle recursive types, hence the use of Any here
-        def serialize_item(item: Union[List[Any], bytes]) -> bytes:
+        def serialize_item(item: 'SExpr') -> bytes:
             if isinstance(item, list):
                 return b'(' + b''.join(serialize_item(j) for j in item) + b')'
             if isinstance(item, bytes):
