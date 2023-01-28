@@ -31,7 +31,7 @@ from unittest import mock
 from . import GpgServer
 
 class SimplePinentry(asyncio.Protocol):
-    def __init__(self, cmd_mock) -> None:
+    def __init__(self, cmd_mock: mock.Mock) -> None:
         super().__init__()
         self.cmd_mock = cmd_mock
 

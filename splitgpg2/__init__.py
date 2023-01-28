@@ -258,7 +258,7 @@ class GpgServer:
             self.log.setLevel(logging.DEBUG)
             self.log_io_enable = True
 
-    def _parse_timer_val(self, value, option_name) -> Optional[int]:
+    def _parse_timer_val(self, value: str, option_name: str) -> Optional[int]:
         if value == 'no':
             return None
         if value == 'yes':
@@ -275,7 +275,7 @@ class GpgServer:
             raise
         return int_value
 
-    def _parse_bool_val(self, value, option_name) -> bool:
+    def _parse_bool_val(self, value: str, option_name: str) -> bool:
         if value == 'no':
             return False
         if value == 'yes':
@@ -286,7 +286,7 @@ class GpgServer:
         )
         raise ValueError(value)
 
-    def load_config(self, config) -> None:
+    def load_config(self, config: configparser.SectionProxy) -> None:
         self.config_loaded = True
         default_autoaccept = config.get('autoaccept', 'no')
         for timer_name in TIMER_NAMES:
@@ -1083,20 +1083,21 @@ class GpgServer:
     # each function returns whether further responses are expected
 
     @classmethod
-    def check_letter_sexp(cls, start_string: bytes, untrusted_sexp: 'SExpr') -> Sequence[object]:
+    def check_letter_sexp(cls, start_string: bytes, untrusted_sexp: 'SExpr' ) -> Union[bytes, 'SExpr']:
         """
         Check that ``untrusted_sexp`` is a list of length 2 that starts with
         ``start_string``.  Returns the second element.
         """
         if not isinstance(untrusted_sexp, list) or len(untrusted_sexp) != 2:
             raise Filtered
+        untrusted_last: Union[bytes, 'SExpr']
         untrusted_first, untrusted_last = untrusted_sexp
         if untrusted_first != start_string:
             raise ValueError('Invalid head of sexp')
         return untrusted_last
 
     @classmethod
-    def check_letter_list(cls, start_string: bytes, untrusted_sexp: 'SExpr') -> list:
+    def check_letter_list(cls, start_string: bytes, untrusted_sexp: 'SExpr') -> List['SExpr']:
         """
         Check that ``untrusted_sexp`` is a list of length 2 that starts with
         ``start_string`` and has a second element of type :py:class:`listj`.
@@ -1157,7 +1158,7 @@ class GpgServer:
                                       untrusted_args=untrusted_args)
 
     def inquire_command_D_KEYGEN(self, *, untrusted_args: bytes) -> Coroutine[object, object, bool]:
-        def validate_bits_len(untrusted_sexp: Union[List[Sequence[object]], bytes]) -> None:
+        def validate_bits_len(untrusted_sexp: 'SExpr') -> None:
             untrusted_bits = self.check_letter_bytes(b'nbits', untrusted_sexp)
             sanitize_int(untrusted_bits, 1024, 4096)
 
