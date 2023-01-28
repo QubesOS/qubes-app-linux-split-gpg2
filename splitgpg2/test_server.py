@@ -64,7 +64,8 @@ class TC_Server(TestCase):
                                             'test_003_gen_and_list',
                                             'test_009_genkey_with_pinentry',
                                             'test_011_genkey_passphrase_empty',
-                                            'test_012_genkey_passphrase_non_empty'):
+                                            'test_012_genkey_passphrase_non_empty',
+                                            'test_013_genkey_bad_algorithm'):
             gpg_server.allow_keygen = True
         self.request_timer_mock = mock.patch.object(
             gpg_server, 'request_timer').start()
@@ -551,6 +552,25 @@ Name-Email: {}
         stdout, stderr = self.loop.run_until_complete(p.communicate())
         if not p.returncode:
             self.fail('Key generation did not fail')
+
+    def test_013_genkey_bad_algorithm(self):
+        async def go():
+            reader, writer = await asyncio.open_unix_connection(self.socket_path)
+            self.assertEqual((await reader.readline()).rstrip(b'\n').split(b' ')[0], b'OK')
+            writer.write(b'RESET\n')
+            self.assertEqual(await reader.readline(), b'OK\n')
+            writer.write(b'GENKEY --no-protection\n')
+            while True:
+                line = await reader.readline()
+                if not line.startswith(b'S '):
+                    break
+            self.assertEqual(line, b'INQUIRE KEYPARAM\n')
+            writer.write(b'D (genkey (bogus bogus))\n')
+            self.assertEqual(await reader.readline(), b'ERR 67109888 Command filtered by split-gpg2.\n')
+            self.assertEqual(await reader.read(1), b'')
+            writer.close()
+            await writer.wait_closed()
+        self.loop.run_until_complete(go())
 
 class TC_Config(TestCase):
     key_uid = 'user@localhost'

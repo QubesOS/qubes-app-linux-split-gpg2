@@ -1210,6 +1210,8 @@ class GpgServer:
                     untrusted_sexp[2] != [b'qbits', b'256']):
                     raise ValueError('invalid DSA parameters')
                 validate_bits_len(untrusted_sexp[1])
+            else:
+                raise ValueError('refusing to generate key with unknown algorithm')
 
         return self.inquire_command_D(validate_keygen_sexp,
                                       untrusted_args=untrusted_args)
