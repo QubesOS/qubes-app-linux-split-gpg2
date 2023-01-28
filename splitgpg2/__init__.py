@@ -995,9 +995,16 @@ class GpgServer:
                     -> bool:
         """ Receive and handle one agent response. Return whether there are
         more expected """
+        assert self.agent_reader is not None
+        assert self.client_writer is not None
+        if self.client_writer.is_closing():
+            # If something went wrong, agent might send back junk.
+            # Discard all remaining data from agent and return.
+            while await self.agent_reader.read(1024):
+                pass
+            return False
         expected_inquires = (expected_inquires if expected_inquires is not None
                              else {})
-        assert self.agent_reader is not None
         # We generally consider the agent as trusted. But since the client can
         # determine part of the response we handle this here as untrusted.
         untrusted_line = await self.agent_reader.readline()
