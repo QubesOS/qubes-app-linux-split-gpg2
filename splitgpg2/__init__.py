@@ -352,6 +352,8 @@ class GpgServer:
             self.gnupghome = new_home_directory
             if source_keyring_dir == new_home_directory:
                 return
+            # Only import shutil if it is actually needed
+            # pylint: disable=import-outside-toplevel
             import shutil
             shutil.rmtree(new_home_directory)
             try:
@@ -1083,7 +1085,9 @@ class GpgServer:
     # each function returns whether further responses are expected
 
     @classmethod
-    def check_letter_sexp(cls, start_string: bytes, untrusted_sexp: 'SExpr' ) -> Union[bytes, 'SExpr']:
+    def check_letter_sexp(cls,
+                          start_string: bytes,
+                          untrusted_sexp: 'SExpr') -> Union[bytes, 'SExpr']:
         """
         Check that ``untrusted_sexp`` is a list of length 2 that starts with
         ``start_string``.  Returns the second element.
@@ -1097,7 +1101,9 @@ class GpgServer:
         return untrusted_last
 
     @classmethod
-    def check_letter_list(cls, start_string: bytes, untrusted_sexp: 'SExpr') -> List['SExpr']:
+    def check_letter_list(cls,
+                          start_string: bytes,
+                          untrusted_sexp: 'SExpr') -> List['SExpr']:
         """
         Check that ``untrusted_sexp`` is a list of length 2 that starts with
         ``start_string`` and has a second element of type :py:class:`listj`.
