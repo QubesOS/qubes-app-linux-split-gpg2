@@ -701,6 +701,7 @@ class TC_Config(TestCase):
         reader = mock.Mock()
         writer = mock.Mock()
         gpg_server = GpgServer(reader, writer, 'server')
+        homedir = gpg_server.gnupghome
         gpg_server.log = mock.Mock()
         config = configparser.ConfigParser()
         config.read_string("""[DEFAULT]
@@ -711,8 +712,7 @@ class TC_Config(TestCase):
         # warns about unsupported option only
         self.assertEqual(gpg_server.log.mock_calls, [
             mock.call.warning('Unsupported config option: %s', 'no_such_option'),
-            mock.call.info('Using GnuPG home directory %s',
-                           gpg_server.gnupghome[:-len('/qubes-auto-keyring')]),
+            mock.call.info('Using GnuPG home directory %s', homedir),
         ])
 
     def test_010_gpghome(self):
