@@ -756,7 +756,7 @@ Name-Real: Joe Tester
 Name-Email: user@localhost
 %no-protection
 %commit
-""".format(self.key_uid)
+"""
         p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
             'gpg', '--quiet', '--batch', '--with-colons',
             '--gen-key', '--homedir', self.gpg_dir.name, env=self.test_environ,
@@ -781,6 +781,7 @@ Name-Email: user@localhost
         gpg_server.load_config(config['DEFAULT'])
         self.assertEqual(gpg_server.source_keyring_dir, self.gpg_dir.name)
         self.assertEqual(gpg_server.gnupghome, f'{self.gpg_dir.name}/test-dir/qubes-auto-keyring')
+        self.assertIsNot(gpg_server.gnupghome, None)
         p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
                 'gpg', '--quiet', '--batch', '--no-tty', '--with-colons',
                 '--homedir', gpg_server.gnupghome,
