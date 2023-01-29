@@ -203,24 +203,51 @@ class GpgServer:
     local real gpg agent. Its instance is saved in *agent_protocol* attribute.
     """
     # pylint: disable=too-many-instance-attributes,too-many-public-methods
-    # type hints, enable when python >= 3.6 will be everywhere...
-    inquire_commands: Dict[bytes, Callable[[bytes], Awaitable[bool]]]
+    verbose_notifications: bool
     timer_delay: Dict[str, Optional[int]]
+    allow_keygen: bool
+    notify_on_disconnect: Set[Awaitable[object]]
+    log_io_enable: bool
+    gnupghome: str
+    client_reader: asyncio.StreamReader
+    client_writer: asyncio.StreamWriter
+    client_domain: str
     hash_algos: Dict[int, HashAlgo]
+    keygrip_map: Dict[bytes, Union[KeyInfo, SubKeyInfo]]
+    inquire_commands: Dict[bytes, Callable[[bytes], Awaitable[bool]]]
     options: Dict[bytes, Tuple[OptionHandlingType, Optional[bytes]]]
     commands: Dict[bytes, 'NoneCallback']
-    client_domain: str
     seen_data: bool
     config_loaded: bool
-    keygrip_map: Dict[bytes, Union[KeyInfo, SubKeyInfo]]
-    notify_on_disconnect: Set[Awaitable[object]]
-    gnupghome: Optional[str]
     agent_socket_path: Optional[str]
     agent_reader: Optional[asyncio.StreamReader]
     agent_writer: Optional[asyncio.StreamWriter]
     source_keyring_dir: Optional[str]
+    log: logging.Logger
 
     cache_nonce_regex: re.Pattern[bytes] = re.compile(rb'\A[0-9A-F]{24}\Z')
+
+    __slots__ = ('verbose_notifications',
+                 'timer_delay',
+                 'allow_keygen',
+                 'notify_on_disconnect',
+                 'log_io_enable',
+                 'gnupghome',
+                 'client_reader',
+                 'client_writer',
+                 'client_domain',
+                 'hash_algos',
+                 'keygrip_map',
+                 'inquire_commands',
+                 'options',
+                 'commands',
+                 'seen_data',
+                 'config_loaded',
+                 'agent_socket_path',
+                 'agent_reader',
+                 'agent_writer',
+                 'source_keyring_dir',
+                 'log')
 
     def __init__(self, reader: asyncio.StreamReader,
                  writer: asyncio.StreamWriter, client_domain: str,

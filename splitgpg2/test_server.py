@@ -70,9 +70,9 @@ class TC_Server(TestCase):
                                             'test_013_genkey_bad_algorithm'):
             gpg_server.allow_keygen = True
         self.request_timer_mock = mock.patch.object(
-            gpg_server, 'request_timer').start()
+            GpgServer, 'request_timer').start()
         self.notify_mock = mock.patch.object(
-            gpg_server, 'notify').start()
+            GpgServer, 'notify').start()
         gpg_server.log_io_enable = True
         gpg_server.gnupghome = os.environ['GNUPGHOME']
         gpg_server.config_loaded = True
@@ -603,9 +603,9 @@ class TC_Config(TestCase):
         gpg_server = GpgServer(reader, writer, 'testvm')
         gpg_server.load_config(config['client:testvm'])
         self.request_timer_mock = mock.patch.object(
-            gpg_server, 'request_timer').start()
+            GpgServer, 'request_timer').start()
         self.notify_mock = mock.patch.object(
-            gpg_server, 'notify').start()
+            GpgServer, 'notify').start()
         gpg_server.log_io_enable = True
         asyncio.ensure_future(gpg_server.run())
 
