@@ -35,8 +35,8 @@ import enum
 import logging
 import os
 import pathlib
-import pwd
 import re
+import shutil
 import signal
 import socket
 import string
@@ -261,7 +261,8 @@ class GpgServer:
         #: signal those Futures when connection is terminated
         self.notify_on_disconnect = set()
         self.log_io_enable = False
-        self.gnupghome = xdg.BaseDirectory.xdg_config_home + '/qubes-split-gpg2/gnupg'
+        self.gnupghome = '' # placeholder
+        self.source_keyring_dir = None
 
         self.client_reader = reader
         self.client_writer = writer
@@ -327,26 +328,21 @@ class GpgServer:
 
         self.allow_keygen = self._parse_bool_val(
             config.get('allow_keygen', 'no'), 'allow_keygen')
-        source_keyring_dir = config.get('source_keyring_dir', None)
-        if source_keyring_dir != 'no':
-            if source_keyring_dir is None:
-                source_keyring_dir = os.getenv('GNUPGHOME')
-            if source_keyring_dir is None:
-                source_keyring_dir = (pwd.getpwuid(os.getuid()).pw_dir +
-                                      '/.gnupg')
-            if not source_keyring_dir.startswith('/'):
-                raise ValueError('Source keyring directory {!r} is not '
-                                 'absolute!'.format(source_keyring_dir))
-            self.source_keyring_dir = source_keyring_dir
-        else:
-            self.source_keyring_dir = None
 
-        if 'isolated_gnupghome_dirs' in config:
-            self.gnupghome = os.path.join(
-                config['isolated_gnupghome_dirs'],
-                self.client_domain)
-
-        self.gnupghome = config.get('gnupghome', self.gnupghome)
+        gnupghome = config.get('gnupghome', None)
+        if gnupghome is None:
+            if 'isolated_gnupghome_dirs' in config:
+                gnupghome = os.path.join(
+                    config['isolated_gnupghome_dirs'],
+                    self.client_domain)
+            else:
+                gnupghome = os.getenv('GNUPGHOME')
+                if gnupghome is None:
+                    gnupghome = os.path.expanduser('~/.gnupg')
+        if not gnupghome.startswith('/'):
+            raise ValueError('GnuPG home directory {!r} is not '
+                             'absolute!'.format(gnupghome))
+        self.gnupghome = gnupghome
 
         # warn about unknown options, to easier spot typos, but don't refuse to
         # start, to allow extensibility
@@ -367,26 +363,28 @@ class GpgServer:
                 self.log.warning('Unsupported config option: %s', option)
         self.log.info('Using GnuPG home directory %s', self.gnupghome)
         os.makedirs(self.gnupghome, 0o700, exist_ok=True)
+
+        source_keyring_dir = config.get('source_keyring_dir')
+        if source_keyring_dir is not None:
+            if source_keyring_dir != 'no':
+                self.source_keyring_dir = source_keyring_dir
+        else:
+            self.source_keyring_dir = self.gnupghome
+
         if self.source_keyring_dir is not None:
-            new_home_directory = self.gnupghome + '/qubes-auto-keyring'
+            self.gnupghome += '/qubes-auto-keyring'
             try:
-                os.mkdir(new_home_directory, 0o700)
+                os.makedirs(self.gnupghome, 0o700)
             except FileExistsError:
-                stat1 = os.stat(source_keyring_dir)
-                stat2 = os.stat(new_home_directory)
+                stat1 = os.stat(self.source_keyring_dir)
+                stat2 = os.stat(self.gnupghome)
+                if stat1.st_ino == stat2.st_ino and stat1.st_dev == stat2.st_dev:
+                    raise ValueError('{!r} and {!r} are the same directory'
+                                     .format(self.gnupghome, self.source_keyring_dir))
                 if stat1.st_mtime <= stat2.st_mtime:
                     return
-            self.gnupghome = new_home_directory
-            if source_keyring_dir == new_home_directory:
-                return
-            # Only import shutil if it is actually needed
-            # pylint: disable=import-outside-toplevel
-            import shutil
-            shutil.rmtree(new_home_directory)
-            try:
-                os.mkdir(new_home_directory, 0o700)
-            except FileExistsError:
-                pass
+            shutil.rmtree(self.gnupghome)
+            os.mkdir(self.gnupghome, 0o700)
             xferflags = ('gpg', '--no-armor', '--batch', '--with-colons',
                          '--no-tty', '--disable-dirmngr')
             export_cmd = xferflags + ('--export-secret-subkeys', '--homedir',
