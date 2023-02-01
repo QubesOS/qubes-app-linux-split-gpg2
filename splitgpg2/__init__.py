@@ -380,7 +380,7 @@ class GpgServer:
                 stat2 = os.stat(self.gnupghome)
                 if stat1.st_ino == stat2.st_ino and stat1.st_dev == stat2.st_dev:
                     raise ValueError('{!r} and {!r} are the same directory'
-                                     .format(self.gnupghome, self.source_keyring_dir))
+                                     .format(self.gnupghome, self.source_keyring_dir)) from None
                 if stat1.st_mtime <= stat2.st_mtime:
                     return
             shutil.rmtree(self.gnupghome)
