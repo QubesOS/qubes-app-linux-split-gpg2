@@ -104,6 +104,18 @@ If you want change some server option copy `/usr/share/doc/split-gpg2/examples/s
 
 If you have a passphrase on your keys and `gpg-agent` only shows the "keygrip" (something like the fingerprint of the private key) when asking for the passphrase, then make sure that you have imported the public key part in the server domain.
 
+## Subkeys vs primary keys
+
+split-gpg2 only knows a hash of the data being signed.
+Therefore, it cannot differentiate between e.g. signatures of a piece of data or signatures of another key.
+This means that a client can use split-gpg2 to sign other keys, which split-gpg1 did not allow.
+
+To prevent this, split-gpg2 creates a new GnuPG home directory and imports the secret subkeys (**not** the primary key!) to it.
+Clients will be able to use the secret parts of the subkeys, but not of the primary key.
+If your primary key is able to sign data and certify other keys, and your only subkey can only perform encryption, this means that all signing will fail.
+To make signing work again, generate a subkey that is capable of signing but **not** certification.
+split-gpg2 does not generate this key for you because it does not know if the key should e.g. be generated on a smartcard or TPM.
+
 ## Advanced usage
 
 There are a few option not described in this README.
