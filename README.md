@@ -5,15 +5,15 @@
 This software allows you to separate the handling of private key material from the rest of GnuPG's processing.
 This is similar to how smartcards work, except that in this case the handling of the private key is not put into some small microcontroller but into another Qubes domain.
 
-Since GnuPG 2.1.0 the private gpg keys are handled by the gpg-agent.
-This allows to split `gpg` (the cmdline tool - handles public keys, etc.) and the `gpg-agent` which handles the private keys.
+Since GnuPG 2.1.0, secret keys are handled by `gpg-agent`.
+This allows to split `gpg` (the cmdline tool, which handles public keys and the actual OpenPGP protocol) and `gpg-agent` (which handles the private keys).
 This software implements this for Qubes.
-This mainly consists of a restrictive filter in front of `gpg-agent`, written in a memory safe language (python).
+This mainly consists of a restrictive filter in front of `gpg-agent`, written in a memory safe language (Python).
 
 The server is the domain which runs the (real) `gpg-agent` and has access to your private key material.
 The client is the domain in which you run `gpg` and which accesses the server via Qubes RPC.
 
-The server domain is generally considered more trustful then the client domain.
+The server domain is generally considered more trusted then the client domain.
 This implies that the response from the server is _not_ sanitized.
 
 
@@ -44,26 +44,31 @@ qubes.Gpg2 + gpg-client-vm @default allow target=gpg-server-vm
 
 Import/Generate your secret keys in the server domain.
 For example:
+
 ```
 gpg-server-vm$ gpg --import /path/to/my/secret-keys-export
 gpg-server-vm$ gpg --import-ownertrust /path/to/my/ownertrust-export
 ```
 or
+
 ```
 gpg-server-vm$ gpg --gen-key
 ```
 
 In dom0 enable the `split-gpg2-client` service in the client domain, for example via the command-line:
+
 ```shell
 dom0$ qvm-service <SPLIT_GPG2_CLIENT_DOMAIN_NAME> split-gpg2-client on
 ```
 
 To verify if this was done correctly:
+
 ```shell
 dom0$ qvm-service <SPLIT_GPG2_CLIENT_DOMAIN_NAME>
 ```
 
 Output should be:
+
 ```shell
 split-gpg2-client on
 ```
@@ -73,6 +78,7 @@ Restart the client domain.
 Export the **public** part of your keys and import them in the client domain.
 Also import/set proper "ownertrust" values.
 For example:
+
 ```
 gpg-server-vm$ gpg --export > public-keys-export
 gpg-server-vm$ gpg --export-ownertrust > ownertrust-export
@@ -102,8 +108,8 @@ If you have a passphrase on your keys and `gpg-agent` only shows the "keygrip" (
 There are a few option not described in this README.
 See the comments in the example config and the source code.
 
-Similar to a smartcard split-gpg2 only tries to protect the private key.
-For advanced usages consider if a specialized RPC service would be better.
+Similar to a smartcard, split-gpg2 only tries to protect the private key.
+For advanced usages, consider if a specialized RPC service would be better.
 It could do things like checking what data is singed, detailed logging, exposing the encrypted content only to a VM without network, etc.
 
 ## Allow key generation
