@@ -4,13 +4,14 @@
 
 This software allows you to separate the handling of private key material from the rest of GnuPG's processing.
 This is similar to how smartcards work, except that in this case the handling of the private key is not put into some small microcontroller but into another Qubes domain.
+It can also be used to allow GnuPG to use keys stored on a smartcard that is not attached to the qube.
 
 Since GnuPG 2.1.0, secret keys are handled by `gpg-agent`.
 This allows to split `gpg` (the cmdline tool, which handles public keys and the actual OpenPGP protocol) and `gpg-agent` (which handles the private keys).
 This software implements this for Qubes.
 This mainly consists of a restrictive filter in front of `gpg-agent`, written in a memory safe language (Python).
 
-The server is the domain which runs the (real) `gpg-agent` and has access to your private key material.
+The server is the domain which runs the (real) `gpg-agent` and has access to your private key material, or to the smartcard that has the private key material.
 The client is the domain in which you run `gpg` and which accesses the server via Qubes RPC.
 
 The server domain is generally considered more trusted then the client domain.
@@ -111,6 +112,8 @@ See the comments in the example config and the source code.
 Similar to a smartcard, split-gpg2 only tries to protect the private key.
 For advanced usages, consider if a specialized RPC service would be better.
 It could do things like checking what data is singed, detailed logging, exposing the encrypted content only to a VM without network, etc.
+
+Using split-gpg2 as the "backend" for split-gpg1 is known to work.
 
 ## Allow key generation
 
