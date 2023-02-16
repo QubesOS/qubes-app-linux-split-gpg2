@@ -114,7 +114,9 @@ To prevent this, split-gpg2 creates a new GnuPG home directory and imports the s
 Clients will be able to use the secret parts of the subkeys, but not of the primary key.
 If your primary key is able to sign data and certify other keys, and your only subkey can only perform encryption, this means that all signing will fail.
 To make signing work again, generate a subkey that is capable of signing but **not** certification.
-split-gpg2 does not generate this key for you because it does not know if the key should e.g. be generated on a smartcard or TPM.
+split-gpg2 does not generate this key for you, so you need to generate it yourself.
+If you want to generate a key in software, use the `addkey` command of `gpg2 --edit-key`.
+If you want to generate a key on a smartcard or other hardware token, use `addcardkey` instead.
 
 ## Advanced usage
 
