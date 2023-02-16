@@ -390,6 +390,8 @@ class GpgServer:
             export_cmd = xferflags + ('--export-secret-subkeys', '--homedir',
                                       self.source_keyring_dir)
             import_cmd = xferflags + ('--import', '--homedir', self.gnupghome,)
+            self.log.info('Creating subkeys-only keyring in %r from original keyring %r',
+                          self.gnupghome, self.source_keyring_dir)
             with subprocess.Popen(export_cmd,
                                   stdout=subprocess.PIPE,
                                   stdin=subprocess.DEVNULL) as exporter, (
@@ -401,6 +403,8 @@ class GpgServer:
                                  'passphrase, you might want to save it to a '
                                  'file and use passphrase-file and '
                                  'pinentry-mode loopback in gpg.conf')
+            self.log.info('Subkey-only keyring %r created',
+                          self.gnupghome)
 
     async def run(self) -> None:
         await self.connect_agent()
