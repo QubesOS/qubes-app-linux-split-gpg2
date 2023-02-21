@@ -332,9 +332,9 @@ class GpgServer:
         gnupghome = config.get('gnupghome', None)
         if gnupghome is None:
             if 'isolated_gnupghome_dirs' in config:
-                gnupghome = os.path.join(
+                gnupghome = os.path.expanduser(os.path.join(
                     config['isolated_gnupghome_dirs'],
-                    self.client_domain)
+                    self.client_domain))
             else:
                 gnupghome = os.getenv('GNUPGHOME')
                 if gnupghome is None:
@@ -367,11 +367,14 @@ class GpgServer:
         source_keyring_dir = config.get('source_keyring_dir')
         if source_keyring_dir is not None:
             if source_keyring_dir != 'no':
-                self.source_keyring_dir = source_keyring_dir
+                self.source_keyring_dir = os.expanduser(source_keyring_dir)
         else:
             self.source_keyring_dir = self.gnupghome
 
         if self.source_keyring_dir is not None:
+            if not self.source_keyring_dir.startswith('/'):
+                raise ValueError('Source keyring directory {!r} is not '
+                                 'absolute!'.format(self.source_keyring_dir))
             self.gnupghome += '/qubes-auto-keyring'
             try:
                 os.makedirs(self.gnupghome, 0o700)
