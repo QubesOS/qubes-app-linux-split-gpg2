@@ -13,11 +13,11 @@
 # 'pkdecrypt_autoaccept' option - same as 'autoaccept' but only for decrypt requests
 # Note that signing and decrypt requests may be indistinguishable for some key types.
 
-# 'verbose_notification' option - show extra notifications
+# 'verbose_notifications' option - show extra notifications
 # accepted values: yes, no
 #
 # default:
-# verbose_notification = no
+# verbose_notifications = no
 
 # 'allow-keygen' option - allow generating new keys
 # accepted values: yes, no
