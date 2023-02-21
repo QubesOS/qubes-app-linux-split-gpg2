@@ -48,6 +48,14 @@
 # default:
 # debug_log =
 
+# 'source_keyring_dir' option - use a different source keyring.  If not set,
+# the default is to use the home directory computed above.  Secret subkeys (but
+# *not* the main key!) will be imported from this directory to the directory
+# 'qubes-auto-keyring' under the home directory.  Set this to 'no' to
+# disable the feature and give clients access to all secret keys.  This
+# is not recommended as it allows clients to sign other OpenPGP keys.
+#
+# default: (not set)
 
 # Each config option can be also set for specific client qube only, by putting
 # it in a "client:<name>" section. For example, to automatically accept all
