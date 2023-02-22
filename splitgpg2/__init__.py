@@ -31,7 +31,6 @@ This implements the server part. See README for details.
 import asyncio
 import configparser
 import enum
-
 import logging
 import os
 import pathlib
@@ -314,6 +313,30 @@ class GpgServer:
         )
         raise ValueError(value)
 
+    def setup_subkey_keyring(self) -> None:
+        shutil.rmtree(self.gnupghome)
+        os.mkdir(self.gnupghome, 0o700)
+        xferflags = ('gpg', '--no-armor', '--batch', '--with-colons',
+                     '--no-tty', '--disable-dirmngr')
+        export_cmd = xferflags + ('--export-secret-subkeys', '--homedir',
+                                  self.source_keyring_dir)
+        import_cmd = xferflags + ('--import', '--homedir', self.gnupghome,)
+        self.log.info('Creating subkeys-only keyring in %r from original keyring %r',
+                      self.gnupghome, self.source_keyring_dir)
+        with subprocess.Popen(export_cmd,
+                              stdout=subprocess.PIPE,
+                              stdin=subprocess.DEVNULL) as exporter, (
+             subprocess.Popen(import_cmd,
+                              stdin=exporter.stdout)) as importer:
+            pass
+        if exporter.returncode or importer.returncode:
+            self.log.warning('Unable to export keys.  If your key has a '
+                             'passphrase, you might want to save it to a '
+                             'file and use passphrase-file and '
+                             'pinentry-mode loopback in gpg.conf')
+        self.log.info('Subkey-only keyring %r created',
+                      self.gnupghome)
+
     def load_config(self, config: configparser.SectionProxy) -> None:
         self.config_loaded = True
         default_autoaccept = config.get('autoaccept', 'no')
@@ -367,7 +390,7 @@ class GpgServer:
         source_keyring_dir = config.get('source_keyring_dir')
         if source_keyring_dir is not None:
             if source_keyring_dir != 'no':
-                self.source_keyring_dir = os.expanduser(source_keyring_dir)
+                self.source_keyring_dir = os.path.expanduser(source_keyring_dir)
         else:
             self.source_keyring_dir = self.gnupghome
 
@@ -386,28 +409,7 @@ class GpgServer:
                                      .format(self.gnupghome, self.source_keyring_dir)) from None
                 if stat1.st_mtime <= stat2.st_mtime:
                     return
-            shutil.rmtree(self.gnupghome)
-            os.mkdir(self.gnupghome, 0o700)
-            xferflags = ('gpg', '--no-armor', '--batch', '--with-colons',
-                         '--no-tty', '--disable-dirmngr')
-            export_cmd = xferflags + ('--export-secret-subkeys', '--homedir',
-                                      self.source_keyring_dir)
-            import_cmd = xferflags + ('--import', '--homedir', self.gnupghome,)
-            self.log.info('Creating subkeys-only keyring in %r from original keyring %r',
-                          self.gnupghome, self.source_keyring_dir)
-            with subprocess.Popen(export_cmd,
-                                  stdout=subprocess.PIPE,
-                                  stdin=subprocess.DEVNULL) as exporter, (
-                 subprocess.Popen(import_cmd,
-                                  stdin=exporter.stdout)) as importer:
-                pass
-            if exporter.returncode or importer.returncode:
-                self.log.warning('Unable to export keys.  If your key has a '
-                                 'passphrase, you might want to save it to a '
-                                 'file and use passphrase-file and '
-                                 'pinentry-mode loopback in gpg.conf')
-            self.log.info('Subkey-only keyring %r created',
-                          self.gnupghome)
+            self.setup_subkey_keyring()
 
     async def run(self) -> None:
         await self.connect_agent()
