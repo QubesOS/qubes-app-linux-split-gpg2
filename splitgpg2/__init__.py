@@ -314,6 +314,7 @@ class GpgServer:
         raise ValueError(value)
 
     def setup_subkey_keyring(self) -> None:
+        assert self.source_keyring_dir is not None
         shutil.rmtree(self.gnupghome)
         os.mkdir(self.gnupghome, 0o700)
         xferflags = ('gpg', '--no-armor', '--batch', '--with-colons',
