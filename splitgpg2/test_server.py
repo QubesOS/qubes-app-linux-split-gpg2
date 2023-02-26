@@ -130,6 +130,7 @@ class TC_Server(TestCase):
         self.gpg_dir.cleanup()
         del os.environ['GNUPGHOME']
         mock.patch.stopall()
+        self.loop.close()
         super(TC_Server, self).tearDown()
 
     def genkey(self) -> None:
@@ -592,10 +593,6 @@ Name-Email: {}
 class TC_Config(TestCase):
     key_uid = 'user@localhost'
 
-    def __init__(self, a: str):
-        asyncio.set_event_loop(asyncio.new_event_loop())
-        super().__init__(a)
-
     def setup_server(self,
                      config: configparser.ConfigParser,
                      reader: asyncio.StreamReader,
@@ -639,6 +636,7 @@ class TC_Config(TestCase):
             pass
         self.gpg_dir.cleanup()
         mock.patch.stopall()
+        self.loop.close()
         super().tearDown()
 
     def genkey(self) -> None:
