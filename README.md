@@ -100,7 +100,7 @@ uid           [ultimate] test
 ssb#  rsa2048 2019-12-18 [E]
 ```
 
-If you want change some server option copy `/usr/share/doc/split-gpg2/examples/split-gpg2-rc.example` to `~/.config/split-gpg2-rc` and change it as desired.
+If you want change some server option copy `/usr/share/doc/split-gpg2/examples/qubes-split-gpg2.conf.example` to `~/.config/qubes-split-gpg2/qubes-split-gpg2.conf` and change it as desired.
 
 If you have a passphrase on your keys and `gpg-agent` only shows the "keygrip" (something like the fingerprint of the private key) when asking for the passphrase, then make sure that you have imported the public key part in the server domain.
 
@@ -131,7 +131,7 @@ Using split-gpg2 as the "backend" for split-gpg1 is known to work.
 
 ## Allow key generation
 
-By setting `SPLIT_GPG2_ALLOW_KEYGEN=yes` in `split-gpg2-rc` you can allow the client to generate new keys.
+By setting `allow_keygen = yes` in `qubes-split-gpg2.conf` you can allow the client to generate new keys.
 Normal usage should not need this.
 
 **Warning**: This feature is new and not much tested.
