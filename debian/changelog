@@ -1,3 +1,207 @@
+split-gpg2 (1.0.0) unstable; urgency=medium
+
+  [ HW42 ]
+  * don't require .split-gpg2-rc in system service
+
+  [ Simon Gaiser ]
+  * Order split-gpg2-client.service after qubes-misc-post.service
+  * Fake the 'putenv' command
+  * Fix systemd service name in README
+  * Add short explanaition of key handling to the README
+
+  [ Marek Marczykowski-Górecki ]
+  * Rewrite in Python
+  * Optionally allow the client to trigger key generation
+  * Make I/O logging optional
+  * Add automated tests
+  * Refresh packaging, integrate with qubes-builder
+  * Add pylint configuration, and few exceptions
+  * travis: initial config
+  * Add requirements to README
+
+  [ Simon Gaiser ]
+  * Debian build needs dh-python
+  * Cleanup empty comment
+  * Fix main
+  * Improve and clarify teardown on errors
+  * Filter HT (0x09, t) in logged IO
+  * Fix path to example config in README
+  * Remove obsolete comment about default_options
+  * Fake 'SCD SERIALNO openpgp' to fix search for default key
+  * Use 'extra-socket' as defense in depth
+  * Set a timeout on "Do you want"-prompts
+  * Cleanup split-gpg2-client
+  * Update split-gpg2-client.service
+  * Add env var for allowing keygen commands
+  * debian/control: gnupg2 has been renamed to just gnupg
+  * Update .gitignore
+  * Don't try to kill systemd
+  * Fix handling of 'OPTION display' in combination with extra-socket
+  * Fix type "lenght"
+  * Use 'gpg' binary in tests
+  * rpm_spec: Depend on new enough gnupg
+  * Do not use SETKEYDESC from client
+  * Sanitize "sexpr" in D (data) inquires
+  * Always call it split-gpg2
+  * Allow systemwide config and use XDG_CONFIG_HOME
+  * Makefile.builder: Remove vim modeline
+  * Update README and example config
+
+  [ Piotr Król ]
+  * README: fix typos, white space and clarify some sections
+
+  [ HW42 ]
+  * Remove ask for anyvm in qubes-rpc policy
+  * README: Link to qubes-builder doc instead of it's repo
+  * README: Fix line break in copyright notice
+
+  [ Simon Gaiser ]
+  * Fix error type/message for sexpr with invalid end
+  * Don't silently drop multiple top level sexpr literals
+  * Fix detection of mismatching parenthesis in sexprs
+  * Ignore cache nonce for GENKEY
+  * Refuse other GENKEY options
+  * Fix typo in GENKEY --no-protection parsing
+  * Allow GENKEY --timestamp=
+  * Raise debhelper compat level
+  * Give that old debug utility a little bit better name
+  * Warn about allowing keygen
+  * client: No old shell style code and fail if socket path is empty
+
+  [ Demi Marie Obenour ]
+  * Uncomment type hints
+
+  [ Simon Gaiser ]
+  * Don't try to stop an existing agent
+  * client: wrap long line
+  * server: Use stdin/-out instead of bi-directional socket
+  * server: Fix remaining calls to GpgServer.abort
+
+  [ Demi Marie Obenour ]
+  * Add a type annotation for cache_nonce_regex
+  * Run split-gpg2-client as a systemd session service
+  * split-gpg2-client conflicts with gpg-agent.socket
+
+  [ Simon Gaiser ]
+  * systemd: Also conflict with other gpg-agent units
+  * GpgServer.parse_sexpr: enforce that the sexpr top level is a list
+  * GpgServer.serialize_sexpr: add type checks
+  * client: check exit status of gpgconf
+  * client: Consistently use bash's [[ test command
+
+  [ Demi Marie Obenour ]
+  * Validate environment variable values
+  * GpgServer.parse_sexpr: add type annotation and check
+
+  [ Simon Gaiser ]
+  * GpgServer.parse_sexpr: Refuse deeply nested sexpr
+  * server: Explain why we currently don't validate sexpr content
+  * client: escape the path passed to #! interpreter from arguments
+
+  [ Marek Marczykowski-Górecki ]
+  * Fix enabling service on install
+  * Prevent gpg from starting local agent
+  * rpm: add missing BR: make
+  * deb: downgrade debhelper-compat level to 12
+  * Include client qube name in the autoaccept flag file
+  * deb: split out python3-splitgpg2
+  * Add integration tests
+  * Drop Travis CI
+  * ci: add gitlab-ci config
+  * Make pylint happy
+  * Add support for HAVEKEY --list
+  * Update smartcard mock
+  * Handshake test fix
+  * tests: force 'C' locale
+  * tests: temporarily skip keygen test
+  * tests: set own key as ultimately trusted
+  * ci: mark source dir as 'safe'
+
+  [ Demi Marie Obenour ]
+  * Add and use a test runner script
+  * Add function to sanitize integers
+  * Use compound assignment
+  * Sanitize CIPHERTEXT inquires.
+  * Add tests for generating various types of keys
+  * Use EdDSA instead of RSA in tests
+  * Sanitize KEYPARAM sexp
+  * Allow an empty passphrase to be specified
+  * Use explicit base 10 for int()
+  * Fix an incorrect regular expression
+
+  [ Marek Marczykowski-Górecki ]
+  * Use new policy format and location
+  * Treat negative autoaccept time as "always allow"
+  * Use stricter config file
+  * Remove unused variable
+  * add some type annotations
+  * Warn about unsupported options - easier to spot typos
+
+  [ Demi Marie Obenour ]
+  * Improve a comment
+  * Fix all MyPy errors
+  * Fix support for old Python
+
+  [ Marek Marczykowski-Górecki ]
+  * Fix one more mypy issue
+  * ci: add mypy job
+  * Add builderv2 integration
+
+  [ Demi Marie Obenour ]
+  * Support using existing keys for key generation
+  * Improve split-gpg2-client script
+  * Ignore pinentry-mode options
+  * Allow GETINFO s2k_count
+  * Work around gpgconf error-checking bug
+  * Move configuration to a subdirectory
+  * Use object-oriented approach to keygrip map
+  * Set umask to 0077
+  * Always use a non-default GnuPG home directory
+
+  [ Marek Marczykowski-Górecki ]
+  * split-gpg2-client: Fix typo in agent socket path verification
+
+  [ Frédéric Pierret (fepitre) ]
+  * spec: add BR python3-setuptools
+  * Make mypy happy
+
+  [ Demi Marie Obenour ]
+  * Automatically create GnuPG home directory
+  * Automatically import secret subkeys by default
+  * Add auto_sync config option
+  * Rename auto_sync to auto_keyring_sync
+  * Revert "Always use a non-default GnuPG home directory"
+  * tests: Expand generate_key()
+  * Replace auto_keyring_sync by source_keyring_dir
+  * Fix importing subkeys into newly created directory
+  * Refuse to generate keys with unknown algorithms
+  * Fix some mypy errors
+  * Fix some pylint errors
+  * fix mypy errors in tests
+  * Try to fix tests in Debian packaging
+  * Use MyPy strict mode
+  * Avoid spurious ProtocolError when command filtered
+  * fix tests in Debian packaging
+  * Add type hints to all attributes and uses __slots__
+  * Make source_keyring_dir not override isolated_gnupghome_dirs
+  * fix pylint warning
+  * Editorial fixes to README.md
+  * Add documentation about additional working uses
+  * Document subkey vs primary key distinction
+  * Update subkey generation docs
+  * Log keyring generation
+  * Expand ~ and ~user in all keyring paths
+  * typo: verbose_notifications, not verbose_notification
+  * Document source_keyring_dir
+  * Fix typo and make code more readable
+
+  [ Marek Marczykowski-Górecki ]
+  * Assert that self.source_keyring_dir is set
+  * tests: fix loop cleanup
+  * README: Update references to the config location and format
+
+ -- Marek Marczykowski-Górecki <marmarek@invisiblethingslab.com>  Mon, 27 Feb 2023 17:42:32 +0100
+
 split-gpg2 (0.1) experimental; urgency=low
 
   * Initial beta release.
