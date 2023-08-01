@@ -40,10 +40,9 @@ Description: Python package splitgpg2
 Package: split-gpg2-tests
 Section: admin
 Architecture: all
-# add python3-dogtail, when packaged for Debian
 Depends:
  split-gpg2,
- python3-pyatspi,
+ python3-dogtail,
  dovecot-imapd,
  xdotool,
  ${misc:Depends}
