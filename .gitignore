@@ -8,3 +8,4 @@
 /debian/split-gpg2/
 /pkgs/
 /splitgpg2.egg-info/
+/splitgpg2/__pycache__/

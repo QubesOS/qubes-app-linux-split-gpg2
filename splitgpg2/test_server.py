@@ -28,7 +28,7 @@ import base64
 import re
 from unittest import TestCase
 from unittest import mock
-from . import GpgServer
+from . import GpgServer, load_config_files
 from typing import Union, Optional, Sequence, Tuple, List, Mapping, Any
 
 class SimplePinentry(asyncio.Protocol):
@@ -731,6 +731,46 @@ class TC_Config(TestCase):
         self.assertEqual(gpg_server.log.mock_calls[0],
             mock.call.warning('Unsupported config option: %s', 'no_such_option'),
         )
+
+    def test_004_multiple_files(self) -> None:
+        reader = mock.Mock()
+        writer = mock.Mock()
+        config = configparser.ConfigParser()
+        tmpdir = tempfile.TemporaryDirectory()
+        confdir = tmpdir.name + '/qubes-split-gpg2'
+        os.makedirs(confdir + '/conf.d', 0o700)
+        os.environ['XDG_CONFIG_HOME'] = tmpdir.name
+        default_file = confdir + '/qubes-split-gpg2.conf'
+        first_extra_file = confdir + '/conf.d/00_test.conf'
+        second_extra_file = confdir + '/conf.d/01_test.conf'
+        with open(default_file, 'w', encoding='utf-8') as d:
+            d.write("""
+            [client:testvm]
+            allow_keygen = yes
+            """)
+        with open(first_extra_file, 'w', encoding='utf-8') as e:
+            e.write("""
+            [client:testvm]
+            autoaccept = yes
+            verbose_notifications = no
+            """)
+        with open(second_extra_file, 'w', encoding='utf-8') as e:
+            e.write("""
+            [client:testvm]
+            pksign_autoaccept = no
+            pkdecrypt_autoaccept = yes
+            allow_keygen = no
+            verbose_notifications = yes
+            """)
+        config_loaded = load_config_files('testvm')
+        gpg_server = GpgServer(reader, writer, 'testvm')
+        gpg_server.load_config(config_loaded)
+        ## Test user config loaded at last.
+        self.assertTrue(gpg_server.allow_keygen)
+        ## Test order of drop-in config loaded.
+        self.assertTrue(gpg_server.verbose_notifications)
+        self.assertFalse(gpg_server.timer_delay['PKSIGN'])
+        self.assertTrue(gpg_server.timer_delay['PKDECRYPT'])
 
     def test_010_gpghome(self) -> None:
         self.genkey()

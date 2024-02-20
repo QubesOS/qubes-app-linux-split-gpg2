@@ -1,3 +1,7 @@
+# Place this file in ~/.config/qubes-split-gpg2/qubes-split-gpg2.conf
+# It will take precedence over any other included configuration file, such
+# as the drop-in '.conf' files in ~/.config/qubes-split-gpg2/conf.d/
+
 [DEFAULT]
 # 'autoaccept' option - for how long automatically accept requests from the
 # same client qube; accepted values:

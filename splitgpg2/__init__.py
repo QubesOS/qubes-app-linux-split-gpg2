@@ -31,6 +31,7 @@ This implements the server part. See README for details.
 import asyncio
 import configparser
 import enum
+import glob
 import logging
 import os
 import pathlib
@@ -44,7 +45,6 @@ import sys
 import time
 from typing import Optional, Dict, Callable, Awaitable, Tuple, Pattern, List, \
      Union, Any, TypeVar, Set, TYPE_CHECKING, Coroutine, Sequence, cast
-import xdg.BaseDirectory  # type: ignore
 
 if TYPE_CHECKING:
     from typing_extensions import Protocol
@@ -1411,13 +1411,24 @@ def open_stdinout_connection(*,
 
 
 def load_config_files(client_domain: str) -> configparser.SectionProxy:
-    config_dirs = ['/etc', xdg.BaseDirectory.xdg_config_home + '/qubes-split-gpg2']
-
+    config_dir_basename = 'qubes-split-gpg2'
+    config_basename = 'qubes-split-gpg2.conf'
+    config_dir_system = os.path.join('/etc/', config_basename)
+    ## Using the xdg module makes it difficult to mode xdg_config_home.
+    xdg_config_home = os.environ.get('XDG_CONFIG_HOME') or \
+            os.path.join(os.path.expanduser('~'), '.config')
+    config_dir_user = xdg_config_home + '/' + config_dir_basename
     config = configparser.ConfigParser()
-    config.read([os.path.join(d, 'qubes-split-gpg2.conf') for d in config_dirs])
+    config_list = []
+    config_list.append(config_dir_system)
+    config_extra_list = sorted(glob.glob(config_dir_user + '/conf.d/*.conf'))
+    for extra_config_file in config_extra_list:
+        config_list.append(extra_config_file)
+    config_list.append(config_dir_user + '/' + config_basename)
+    config.read(config_list)
+    section = 'client:' + client_domain
     # 'DEFAULTS' section is special, values there serve as defaults
     # for other sections
-    section = 'client:' + client_domain
     if config.has_section(section):
         return config[section]
     return config['DEFAULT']
