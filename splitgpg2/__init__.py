@@ -421,6 +421,9 @@ class GpgServer:
             # close connection to the real gpg agent too
             if self.agent_writer is not None:
                 self.agent_writer.close()
+                await self.agent_writer.wait_closed()
+            self.client_writer.close()
+            await self.client_writer.wait_closed()
 
     def log_io(self, prefix: str, untrusted_msg: bytes) -> None:
         if not self.log_io_enable:
