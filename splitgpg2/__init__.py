@@ -1281,8 +1281,7 @@ class GpgServer:
             validate_sexp(untrusted_sexp=untrusted_sexp)
         except ValueError as e:
             raise Filtered from e
-        else:
-            args = untrusted_sexp
+        args = untrusted_sexp
 
         self.agent_write(b'D ' + self.escape_D(self.serialize_sexpr(args)) + b'\n')
         self.seen_data = True

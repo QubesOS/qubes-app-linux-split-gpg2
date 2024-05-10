@@ -59,6 +59,7 @@ confidence=
 
 # abstract-method: https://stackoverflow.com/questions/30884804/pylint-for-half-implemented-abstract-classes
 disable=
+ superfluous-parens,
  missing-docstring,
  empty-docstring,
  fixme,
