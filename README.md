@@ -100,7 +100,7 @@ uid           [ultimate] test
 ssb#  rsa2048 2019-12-18 [E]
 ```
 
-If you want change some server option copy `/usr/share/doc/split-gpg2/examples/qubes-split-gpg2.conf.example` to `~/.config/qubes-split-gpg2/qubes-split-gpg2.conf` and change it as desired.
+If you want change some server option copy `/usr/share/doc/split-gpg2/examples/qubes-split-gpg2.conf.example` to `~/.config/qubes-split-gpg2/qubes-split-gpg2.conf` and change it as desired, it will take precedence over other loaded files, such as the drop-in configuration files with the suffix `.conf` in `~/.config/qubes-split-gpg2/conf.d/`.
 
 If you have a passphrase on your keys and `gpg-agent` only shows the "keygrip" (something like the fingerprint of the private key) when asking for the passphrase, then make sure that you have imported the public key part in the server domain.
 
