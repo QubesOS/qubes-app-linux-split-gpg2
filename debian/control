@@ -25,10 +25,12 @@ Architecture: any
 Depends:
  gnupg (>= 2.1.0~beta),
  zenity,
- libnotify-bin,
  python3-xdg,
  ${misc:Depends},
  ${python3:Depends},
+Recommends:
+ libnotify-bin,
+ notification-daemon,
 Description: Python package splitgpg2
  Python package splitgpg2
 

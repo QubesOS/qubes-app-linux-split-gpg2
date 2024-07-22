@@ -19,7 +19,8 @@ Requires:       bash
 Requires:       gnupg2 >= 2.1.0
 Requires:       systemd
 Requires:       zenity
-Requires:       libnotify
+Recommends:     libnotify
+Recommends:     desktop-notification-daemon
 
 %description
 split-gpg2 allows you to run the gpg client in a different Qubes-Domain than
