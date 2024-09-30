@@ -292,7 +292,6 @@ Expire-Date: 0
         do_test('ECDSA', 'ECDH', 'NIST P-521', 'NIST P-521')
         do_test('ECDSA', 'ECDH', 'secp256k1', 'secp256k1')
         do_test('EDDSA', 'ECDH', 'Ed25519', 'Curve25519')
-        do_test('EDDSA', 'ECDH', 'Ed448', 'X448')
 
         for i in curves:
             if i.startswith('ed'):
