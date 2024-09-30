@@ -1409,11 +1409,8 @@ class FlowControlMixin(asyncio.protocols.Protocol):
     StreamWriter.drain() must wait for _drain_helper() coroutine.
     """
 
-    def __init__(self, loop=None):
-        if loop is None:
-            self._loop = events.get_event_loop()
-        else:
-            self._loop = loop
+    def __init__(self, loop):
+        self._loop = loop
         self._paused = False
         self._drain_waiters = collections.deque()
         self._connection_lost = False
@@ -1422,14 +1419,10 @@ class FlowControlMixin(asyncio.protocols.Protocol):
     def pause_writing(self):
         assert not self._paused
         self._paused = True
-        if self._loop.get_debug():
-            logger.debug("%r pauses writing", self)
 
     def resume_writing(self):
         assert self._paused
         self._paused = False
-        if self._loop.get_debug():
-            logger.debug("%r resumes writing", self)
 
         for waiter in self._drain_waiters:
             if not waiter.done():
@@ -1465,6 +1458,7 @@ class FlowControlMixin(asyncio.protocols.Protocol):
         finally:
             self._drain_waiters.remove(waiter)
 
+    # pylint: disable=unused-argument
     def _get_close_waiter(self, stream):
         return self._closed
 
