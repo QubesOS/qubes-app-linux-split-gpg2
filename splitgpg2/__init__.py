@@ -544,6 +544,7 @@ class GpgServer:
             b'BYE': self.command_BYE,
             b'SCD': self.command_SCD,
             b'READKEY': self.command_READKEY,
+            b'NOP': self.command_NOP,
         }
 
     @staticmethod
@@ -906,6 +907,11 @@ class GpgServer:
     async def command_SETKEYDESC(self, untrusted_args: Optional[bytes]) -> None:
         # Fake a positive respose. We always send a SETKEYDESC after
         # SETKEY/SIGKEY.
+        # pylint: disable=unused-argument
+        self.fake_respond(b'OK')
+
+    async def command_NOP(self, untrusted_args: Optional[bytes]) -> None:
+        # Ignores all arguments.
         # pylint: disable=unused-argument
         self.fake_respond(b'OK')
 
