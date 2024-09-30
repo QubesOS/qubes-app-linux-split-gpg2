@@ -171,7 +171,7 @@ class TC_Server(TestCase):
                      *,
                      subkey_usage: str = 'encrypt',
                      client: bool = True) -> Tuple[bytes, bytes]:
-        fpr_re = re.compile(rb'\A[0-9A-F]{40}\Z')
+        fpr_re = re.compile(rb'\A[0-9A-F]{40}(?:[0-9A-F]{24})?\Z')
         email = 'a' + str(self.counter) + self.key_uid
         self.counter += 1
         handle = base64.b64encode(os.urandom(32)).decode('ascii', 'strict')

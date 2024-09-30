@@ -29,6 +29,7 @@ This implements the server part. See README for details.
 # pylint: disable=fixme,too-few-public-methods,missing-class-docstring
 
 import asyncio
+import collections
 import configparser
 import enum
 import glob
@@ -544,6 +545,7 @@ class GpgServer:
             b'BYE': self.command_BYE,
             b'SCD': self.command_SCD,
             b'READKEY': self.command_READKEY,
+            b'NOP': self.command_NOP,
         }
 
     @staticmethod
@@ -906,6 +908,11 @@ class GpgServer:
     async def command_SETKEYDESC(self, untrusted_args: Optional[bytes]) -> None:
         # Fake a positive respose. We always send a SETKEYDESC after
         # SETKEY/SIGKEY.
+        # pylint: disable=unused-argument
+        self.fake_respond(b'OK')
+
+    async def command_NOP(self, untrusted_args: Optional[bytes]) -> None:
+        # Ignores all arguments.
         # pylint: disable=unused-argument
         self.fake_respond(b'OK')
 
@@ -1392,6 +1399,69 @@ TIMER_NAMES = (
     'PKDECRYPT',
 )
 
+class FlowControlMixin(asyncio.protocols.Protocol):
+    """Reusable flow control logic for StreamWriter.drain().
+
+    This implements the protocol methods pause_writing(),
+    resume_writing() and connection_lost().  If the subclass overrides
+    these it must call the super methods.
+
+    StreamWriter.drain() must wait for _drain_helper() coroutine.
+    """
+
+    def __init__(self, loop):
+        self._loop = loop
+        self._paused = False
+        self._drain_waiters = collections.deque()
+        self._connection_lost = False
+        self._closed = self._loop.create_future()
+
+    def pause_writing(self):
+        assert not self._paused
+        self._paused = True
+
+    def resume_writing(self):
+        assert self._paused
+        self._paused = False
+
+        for waiter in self._drain_waiters:
+            if not waiter.done():
+                waiter.set_result(None)
+
+    def connection_lost(self, exc):
+        self._connection_lost = True
+        # Wake up the writer(s) if currently paused.
+        if not self._paused:
+            return
+
+        for waiter in self._drain_waiters:
+            if not waiter.done():
+                if exc is None:
+                    waiter.set_result(None)
+                else:
+                    waiter.set_exception(exc)
+        if not self._closed.done():
+            if exc is None:
+                self._closed.set_result(None)
+            else:
+                self._closed.set_exception(exc)
+
+    async def _drain_helper(self):
+        if self._connection_lost:
+            raise ConnectionResetError('Connection lost')
+        if not self._paused:
+            return
+        waiter = self._loop.create_future()
+        self._drain_waiters.append(waiter)
+        try:
+            await waiter
+        finally:
+            self._drain_waiters.remove(waiter)
+
+    # pylint: disable=unused-argument
+    def _get_close_waiter(self, stream):
+        return self._closed
+
 def open_stdinout_connection(*,
     loop: Optional[asyncio.AbstractEventLoop]=None) -> \
     Tuple[asyncio.StreamReader, asyncio.StreamWriter]:
@@ -1405,7 +1475,7 @@ def open_stdinout_connection(*,
 
     write_transport, write_protocol = loop.run_until_complete(
             loop.connect_write_pipe(
-                lambda: asyncio.streams.FlowControlMixin(loop),
+                lambda: FlowControlMixin(loop),
                 sys.stdout.buffer))
     writer = asyncio.StreamWriter(write_transport, write_protocol, None, loop)
 
