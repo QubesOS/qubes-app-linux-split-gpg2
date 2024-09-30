@@ -171,7 +171,7 @@ class TC_Server(TestCase):
                      *,
                      subkey_usage: str = 'encrypt',
                      client: bool = True) -> Tuple[bytes, bytes]:
-        fpr_re = re.compile(rb'\A[0-9A-F]{40}\Z')
+        fpr_re = re.compile(rb'\A[0-9A-F]{40}(?:[0-9A-F]{24})?\Z')
         email = 'a' + str(self.counter) + self.key_uid
         self.counter += 1
         handle = base64.b64encode(os.urandom(32)).decode('ascii', 'strict')
@@ -292,6 +292,7 @@ Expire-Date: 0
         do_test('ECDSA', 'ECDH', 'NIST P-521', 'NIST P-521')
         do_test('ECDSA', 'ECDH', 'secp256k1', 'secp256k1')
         do_test('EDDSA', 'ECDH', 'Ed25519', 'Curve25519')
+        do_test('EDDSA', 'ECDH', 'Ed448', 'X448')
 
         for i in curves:
             if i.startswith('ed'):
