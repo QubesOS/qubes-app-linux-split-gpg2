@@ -1417,6 +1417,7 @@ class FlowControlMixin(asyncio.protocols.Protocol):
         self._paused = False
         self._drain_waiters = collections.deque()
         self._connection_lost = False
+        self._closed = self._loop.create_future()
 
     def pause_writing(self):
         assert not self._paused
@@ -1446,6 +1447,11 @@ class FlowControlMixin(asyncio.protocols.Protocol):
                     waiter.set_result(None)
                 else:
                     waiter.set_exception(exc)
+        if not self._closed.done():
+            if exc is None:
+                self._closed.set_result(None)
+            else:
+                self._closed.set_exception(exc)
 
     async def _drain_helper(self):
         if self._connection_lost:
@@ -1460,8 +1466,7 @@ class FlowControlMixin(asyncio.protocols.Protocol):
             self._drain_waiters.remove(waiter)
 
     def _get_close_waiter(self, stream):
-        raise NotImplementedError
-
+        return self._closed
 
 def open_stdinout_connection(*,
     loop: Optional[asyncio.AbstractEventLoop]=None) -> \
