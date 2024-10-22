@@ -809,7 +809,9 @@ class GpgServer:
             assert key is not None, 'no key?'
 
             desc = b'%s\nFingerprint: %s%s' % (
-                    (b'UID: ' + key.first_uid.split(b'\n')[0]) if key.first_uid is not None else '',
+                    (b'UID: ' + key.first_uid.split(b'\n')[0])
+                    if key.first_uid is not None
+                    else b'',
                     key.fingerprint,
                     subkey_desc)
 
