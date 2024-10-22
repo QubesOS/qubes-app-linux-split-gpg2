@@ -552,7 +552,7 @@ class GpgServer:
         return {
             b'ttyname': (OptionHandlingType.fake, b'OK'),
             b'ttytype': (OptionHandlingType.fake, b'OK'),
-            b'display': (OptionHandlingType.override, b':0'),
+            b'display': (OptionHandlingType.fake, b'OK'),
             b'lc-ctype': (OptionHandlingType.fake, b'OK'),
             b'lc-messages': (OptionHandlingType.fake, b'OK'),
             b'putenv': (OptionHandlingType.fake, b'OK'),
