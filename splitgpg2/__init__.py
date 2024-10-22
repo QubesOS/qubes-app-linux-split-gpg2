@@ -678,6 +678,11 @@ class GpgServer:
         if not untrusted_args:
             raise Filtered
 
+        if untrusted_args == b'pinentry-mode=ask':
+            # This is the default and a no-op
+            self.fake_respond(b'OK')
+            return
+
         untrusted_name, untrusted_value = extract_args(untrusted_args, b'=')
         try:
             action, opts = self.options[untrusted_name]
