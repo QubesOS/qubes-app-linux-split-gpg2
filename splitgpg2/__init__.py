@@ -459,7 +459,7 @@ class GpgServer:
         if self.allow_keygen:
             socket_field = b'agent-socket:'
         else:
-            socket_field = b'agent-extra-socket:'
+            socket_field = b'agent-extra-socket'
         # search for agent-socket:/run/user/1000/gnupg/S.gpg-agent
         agent_socket_path = [d.split(b':', 1)[1] for d in dirs.splitlines()
                              if d.startswith(socket_field)][0]
@@ -643,9 +643,18 @@ class GpgServer:
 
     @staticmethod
     def verify_keygrip_arguments(min_count: int, max_count: int,
-                                 untrusted_args: Optional[bytes]) -> bytes:
+                                 untrusted_args: Optional[bytes],
+                                 allow_list: bool) -> bytes:
         if untrusted_args is None:
             raise Filtered
+        if allow_list and untrusted_args.startswith(b'--list'):
+            if untrusted_args == b'--list':
+                return b'--list'
+            if untrusted_args[6] == 61: # ASCII '='
+                # 1000 is the default value used by gpg2
+                return b'--list=%d' % sanitize_int(untrusted_args[7:], 1, 1000)
+            raise Filtered
+        untrusted_args_list: List[bytes] = untrusted_args.split(b' ')
         if not (min_count <= len(untrusted_args_list) <= max_count):
             raise Filtered
         for untrusted_arg in untrusted_args_list:
@@ -728,21 +737,11 @@ class GpgServer:
         if untrusted_args is None:
             raise Filtered
         # upper keygrip limit is arbitary
-        if untrusted_args.startswith(b'--list'):
-            if b'=' in untrusted_args:
-                # 1000 is the default value used by gpg2
-                limit = sanitize_int(untrusted_args[len(b'--list='):], 1, 1000)
-                args = b'--list=%d' % limit
-            else:
-                if untrusted_args != b'--list':
-                    raise Filtered
-                args = b'--list'
-        else:
-            args = self.verify_keygrip_arguments(1, 200, untrusted_args)
+        args = self.verify_keygrip_arguments(1, 200, untrusted_args, True)
         await self.send_agent_command(b'HAVEKEY', args)
 
     async def command_KEYINFO(self, untrusted_args: Optional[bytes]) -> None:
-        args = self.verify_keygrip_arguments(1, 1, untrusted_args)
+        args = self.verify_keygrip_arguments(1, 1, untrusted_args, True)
         await self.send_agent_command(b'KEYINFO', args)
 
     async def command_GENKEY(self, untrusted_args: Optional[bytes]) -> None:
@@ -782,12 +781,12 @@ class GpgServer:
         await self.send_agent_command(b'GENKEY', b' '.join(args))
 
     async def command_SIGKEY(self, untrusted_args: Optional[bytes]) -> None:
-        args = self.verify_keygrip_arguments(1, 1, untrusted_args)
+        args = self.verify_keygrip_arguments(1, 1, untrusted_args, False)
         await self.send_agent_command(b'SIGKEY', args)
         await self.setkeydesc(args)
 
     async def command_SETKEY(self, untrusted_args: Optional[bytes]) -> None:
-        args = self.verify_keygrip_arguments(1, 1, untrusted_args)
+        args = self.verify_keygrip_arguments(1, 1, untrusted_args, False)
         await self.send_agent_command(b'SETKEY', args)
         await self.setkeydesc(args)
 
@@ -992,7 +991,7 @@ class GpgServer:
             raise Filtered
         if untrusted_args.startswith(b'-- '):
             untrusted_args = untrusted_args[3:]
-        args = self.verify_keygrip_arguments(1, 1, untrusted_args)
+        args = self.verify_keygrip_arguments(1, 1, untrusted_args, False)
 
         await self.send_agent_command(b'READKEY', b'-- ' + args)
 
