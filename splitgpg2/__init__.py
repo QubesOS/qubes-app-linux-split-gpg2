@@ -115,7 +115,6 @@ class OptionHandlingType(enum.Enum):
     # pylint: disable=invalid-name
     fake = 1
     verify = 2
-    override = 3
 
 
 class HashAlgo:
@@ -686,12 +685,7 @@ class GpgServer:
         except KeyError as e:
             raise Filtered from e
 
-        if action == OptionHandlingType.override:
-            if opts is not None:
-                option_arg = b'%s=%s' % (name, opts)
-            else:
-                option_arg = name
-        elif action == OptionHandlingType.verify:
+        if action == OptionHandlingType.verify:
             if callable(opts):
                 verified = opts(untrusted_value=untrusted_value)
             elif isinstance(opts, Pattern):
