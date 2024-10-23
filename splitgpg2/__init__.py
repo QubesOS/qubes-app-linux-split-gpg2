@@ -171,7 +171,8 @@ def extract_args(untrusted_line: bytes, sep: bytes = b' ') -> Tuple[bytes, Optio
     return untrusted_line, None
 
 # none of our uses allow 0, so do not allow it
-_int_re = re.compile(rb'\A[1-9][0-9]*\Z')
+_int_re: re.Pattern[bytes] = re.compile(rb'\A[1-9][0-9]*\Z')
+_hash_regex = re.compile(rb'\A[0-9A-F]+\Z')
 
 def sanitize_int(untrusted_arg: bytes, min_value: int, max_value: int) -> int:
     """
@@ -224,6 +225,8 @@ class GpgServer:
     log: logging.Logger
 
     cache_nonce_regex: re.Pattern[bytes] = re.compile(rb'\A[0-9A-F]{24}\Z')
+    # Any command argument ever sent to the agent should match this pattern.
+    command_argument_regex: re.Pattern[bytes] = re.compile(rb'\A[0-9A-Za-z_=. -]*\Z')
 
     __slots__ = ('verbose_notifications',
                  'timer_delay',
@@ -640,15 +643,15 @@ class GpgServer:
 
     @staticmethod
     def verify_keygrip_arguments(min_count: int, max_count: int,
-            untrusted_args: Optional[bytes]) -> bytes:
+                                 untrusted_args: Optional[bytes]) -> bytes:
         if untrusted_args is None:
             raise Filtered
-        args_regex = re.compile(rb'\A[0-9A-F]{40}( [0-9A-F]{40}){%d,%d}\Z' %
-                                (min_count-1, max_count-1))
-
-        if args_regex.match(untrusted_args) is None:
+        if not (min_count <= len(untrusted_args_list) <= max_count):
             raise Filtered
-        return untrusted_args
+        for untrusted_arg in untrusted_args_list:
+            if len(untrusted_arg) != 40 or not _hash_regex.match(untrusted_arg):
+                raise Filtered
+        return b' '.join(untrusted_args_list)
 
     def sanitize_key_desc(self, untrusted_args: bytes) -> bytes:
         untrusted_args = untrusted_args.replace(b'+', b' ')
@@ -937,30 +940,27 @@ class GpgServer:
         except KeyError as e:
             raise Filtered from e
 
-        if not untrusted_hash:
+        if len(untrusted_hash) != alg_param.len:
             raise Filtered
 
-        hash_regex = re.compile(rb'\A[0-9A-F]{%d}\Z' % alg_param.len)
-        if hash_regex.match(untrusted_hash) is None:
+        if not _hash_regex.match(untrusted_hash):
             raise Filtered
         hash_value = untrusted_hash
 
-        await self.send_agent_command(
-            b'SETHASH', b'%d %s' % (alg, hash_value))
+        # Hash values and ASCII decimal numbers are safe to pass.
+        await self.send_agent_command(b'SETHASH', b'%d %s' % (alg, hash_value))
 
     async def command_PKSIGN(self, untrusted_args: Optional[bytes]) -> None:
         if untrusted_args is not None:
             if not untrusted_args.startswith(b'-- '):
                 raise Filtered
-            untrusted_args = untrusted_args[3:]
-            if self.cache_nonce_regex.match(untrusted_args) is None:
+            if self.cache_nonce_regex.match(untrusted_args[3:]) is None:
                 raise Filtered
-            args = b'-- ' + untrusted_args
-        else:
-            args = None
+        args = untrusted_args
 
         self.request_timer('PKSIGN')
 
+        # String checked to be '-- ' followed by a cache nonce
         await self.send_agent_command(b'PKSIGN', args)
 
     async def command_GETINFO(self, untrusted_args: Optional[bytes]) -> None:
@@ -1019,6 +1019,8 @@ class GpgServer:
         """ Sends command to local gpg agent and handle the response """
         expected_inquires = self.get_inquires_for_command(command)
         if args:
+            if not self.command_argument_regex.match(args):
+                raise AssertionError("BUG: corrupt command about to be sent to agent!")
             cmd_with_args = command + b' ' + args + b'\n'
         else:
             cmd_with_args = command + b'\n'
@@ -1355,7 +1357,7 @@ class GpgServer:
 
         rest: bytes
         value: Union[List['SExpr'], bytes]
-        if untrusted_arg[0] in range(0x30, 0x40):
+        if 0x30 <= untrusted_arg[0] <= 0x40:
             length_s, rest = untrusted_arg.split(b':', 1)
             length = sanitize_int(length_s, 1, len(rest))
             value, rest = rest[0:length], rest[length:]
