@@ -218,6 +218,7 @@ class GpgServer:
     commands: Dict[bytes, 'NoneCallback']
     seen_data: bool
     config_loaded: bool
+    agent_unrestricted_socket_path: Optional[str]
     agent_socket_path: Optional[str]
     agent_reader: Optional[asyncio.StreamReader]
     agent_writer: Optional[asyncio.StreamWriter]
@@ -245,6 +246,7 @@ class GpgServer:
                  'seen_data',
                  'config_loaded',
                  'agent_socket_path',
+                 'agent_unrestricted_socket_path',
                  'agent_reader',
                  'agent_writer',
                  'source_keyring_dir',
@@ -275,6 +277,7 @@ class GpgServer:
 
         self.log = logging.getLogger('splitgpg2.Server')
         self.agent_socket_path = None
+        self.agent_unrestricted_socket_path = None
         self.agent_reader: Optional[asyncio.StreamReader] = None
         self.agent_writer: Optional[asyncio.StreamWriter] = None
 
@@ -456,14 +459,20 @@ class GpgServer:
 
         dirs = subprocess.check_output(
             ['gpgconf', *self.homedir_opts(), '--list-dirs', '-o/dev/stdout'])
-        if self.allow_keygen:
-            socket_field = b'agent-socket:'
-        else:
-            socket_field = b'agent-extra-socket'
+        unrestricted_socket_field = b'agent-socket'
+        socket_field = unrestricted_socket_field if self.allow_keygen else b'agent-extra-socket'
         # search for agent-socket:/run/user/1000/gnupg/S.gpg-agent
-        agent_socket_path = [d.split(b':', 1)[1] for d in dirs.splitlines()
-                             if d.startswith(socket_field)][0]
-        self.agent_socket_path = agent_socket_path.decode()
+        for d in dirs.splitlines():
+            key, value = d.split(b':')
+            if key == socket_field:
+                self.agent_socket_path = value.decode("UTF-8", "surrogateescape")
+            if key == unrestricted_socket_field:
+                self.agent_unrestricted_socket_path = value.decode("UTF-8", "surrogateescape")
+            if ((self.agent_unrestricted_socket_path is not None) and
+                (self.agent_socket_path is not None)):
+                break
+        else:
+            raise RuntimeError("bad output from gpgconf")
 
         self.agent_reader, self.agent_writer = await asyncio.open_unix_connection(
                 path=self.agent_socket_path)
@@ -472,7 +481,7 @@ class GpgServer:
             self.notify('connected')
 
         # wait for agent hello
-        await self.handle_agent_response({})
+        self.client_write(await self.read_hello(self.agent_reader))
 
     def close(self, reason: str, log_level: int = logging.ERROR) -> None:
         self.log.log(log_level, '%s; Closing!', reason)
@@ -559,8 +568,8 @@ class GpgServer:
             b'lc-messages': (OptionHandlingType.fake, b'OK'),
             b'putenv': (OptionHandlingType.fake, b'OK'),
             b'pinentry-mode': (OptionHandlingType.fake, b'ERR 67108924 Not supported <GPG Agent>'),
-            b'allow-pinentry-notify': (OptionHandlingType.verify, None),
-            b'agent-awareness': (OptionHandlingType.verify, b'2.1.0')
+            b'allow-pinentry-notify': (OptionHandlingType.fake, b'OK'),
+            b'agent-awareness': (OptionHandlingType.verify, b'2.1.0'),
         }
 
     @staticmethod
@@ -738,11 +747,13 @@ class GpgServer:
             raise Filtered
         # upper keygrip limit is arbitary
         args = self.verify_keygrip_arguments(1, 200, untrusted_args, True)
-        await self.send_agent_command(b'HAVEKEY', args)
+        unrestricted = args.startswith(b'--list') and not self.allow_keygen
+        await self.send_agent_command(b'HAVEKEY', args, unrestricted)
 
     async def command_KEYINFO(self, untrusted_args: Optional[bytes]) -> None:
         args = self.verify_keygrip_arguments(1, 1, untrusted_args, True)
-        await self.send_agent_command(b'KEYINFO', args)
+        unrestricted = args.startswith(b'--list') and not self.allow_keygen
+        await self.send_agent_command(b'KEYINFO', args, unrestricted)
 
     async def command_GENKEY(self, untrusted_args: Optional[bytes]) -> None:
         if not self.allow_keygen:
@@ -817,7 +828,8 @@ class GpgServer:
                     key.fingerprint,
                     subkey_desc)
 
-        self.agent_write(b'SETKEYDESC %s\n' % self.percent_plus_escape(desc))
+        assert self.agent_writer is not None, "no writer?"
+        self.agent_write(b'SETKEYDESC %s\n' % self.percent_plus_escape(desc), self.agent_writer)
 
         assert self.agent_reader is not None
         untrusted_line = await self.agent_reader.readline()
@@ -1014,43 +1026,68 @@ class GpgServer:
             }
         return {}
 
-    async def send_agent_command(self, command: bytes, args: Optional[bytes]) -> None:
+    async def send_agent_command(self, command: bytes, args: Optional[bytes],
+                                 unrestricted: bool=False) -> None:
         """ Sends command to local gpg agent and handle the response """
         expected_inquires = self.get_inquires_for_command(command)
-        if args:
-            if not self.command_argument_regex.match(args):
-                raise AssertionError("BUG: corrupt command about to be sent to agent!")
-            cmd_with_args = command + b' ' + args + b'\n'
+        assert self.agent_reader is not None, "no reader?"
+        assert self.agent_writer is not None, "no writer?"
+        if unrestricted and not self.allow_keygen:
+            reader, writer = await asyncio.open_unix_connection(
+                    self.agent_unrestricted_socket_path)
+            await self.read_hello(reader)
         else:
-            cmd_with_args = command + b'\n'
-        self.agent_write(cmd_with_args)
-        while True:
-            more_expected = await self.handle_agent_response(
-                    expected_inquires=expected_inquires)
-            if not more_expected:
-                break
+            reader, writer = self.agent_reader, self.agent_writer
+        try:
+            if args:
+                if not self.command_argument_regex.match(args):
+                    raise AssertionError("BUG: corrupt command about to be sent to agent!")
+                cmd_with_args = command + b' ' + args + b'\n'
+            else:
+                cmd_with_args = command + b'\n'
+            self.agent_write(cmd_with_args, writer)
+            while True:
+                more_expected = await self.handle_agent_response(expected_inquires, reader)
+                if not more_expected:
+                    break
+        finally:
+            if reader is not self.agent_reader:
+                writer.close()
 
-    def agent_write(self, data: bytes) -> None:
-        writer = self.agent_writer
+    async def read_hello(self, agent_reader: asyncio.StreamReader) -> bytes:
+        while True:
+            line = await agent_reader.readline()
+            if not line.endswith(b'\n'):
+                raise ProtocolError("premature EOF from agent connection")
+            if b'\n' in line[:-1]:
+                raise ProtocolError("newline in readline() result???")
+            if line.startswith(b'#'):
+                continue
+            if line == b'OK' or line.startswith(b'OK '):
+                return line
+            raise ProtocolError("agent responded with something other than 'OK'"
+                                " to initial connection")
+
+    def agent_write(self, data: bytes, writer: asyncio.StreamWriter) -> None:
         assert writer is not None, 'agent_write called with no agent writer?'
         self.log_io('A <<<', data)
         writer.write(data)
 
     async def handle_agent_response(self,
-                                    expected_inquires: Dict[bytes, 'ArgCallback']) -> bool:
+                                    expected_inquires: Dict[bytes, 'ArgCallback'],
+                                    agent_reader: asyncio.StreamReader) -> bool:
         """ Receive and handle one agent response. Return whether there are
         more expected """
-        assert self.agent_reader is not None
         assert self.client_writer is not None
         if self.client_writer.is_closing():
             # If something went wrong, agent might send back junk.
             # Discard all remaining data from agent and return.
-            while await self.agent_reader.read(1024):
+            while await agent_reader.read(1024):
                 pass
             return False
         # We generally consider the agent as trusted. But since the client can
         # determine part of the response we handle this here as untrusted.
-        untrusted_line = await self.agent_reader.readline()
+        untrusted_line = await agent_reader.readline()
         untrusted_line = untrusted_line.rstrip(b'\n')
         self.log_io('A >>>', untrusted_line)
         if untrusted_line.startswith(b'#'):
@@ -1291,7 +1328,9 @@ class GpgServer:
             raise Filtered from e
         args = untrusted_sexp
 
-        self.agent_write(b'D ' + self.escape_D(self.serialize_sexpr(args)) + b'\n')
+        assert self.agent_writer is not None, "no writer?"
+        self.agent_write(b'D ' + self.escape_D(self.serialize_sexpr(args)) + b'\n',
+                         self.agent_writer)
         self.seen_data = True
         return True
 
@@ -1389,7 +1428,8 @@ class GpgServer:
     async def inquire_command_END(self, *, untrusted_args: bytes) -> bool:
         if untrusted_args:
             raise Filtered('unexpected arguments to END')
-        self.agent_write(b'END\n')
+        assert self.agent_writer is not None, "no writer?"
+        self.agent_write(b'END\n', self.agent_writer)
         return False
 
     # endregion
