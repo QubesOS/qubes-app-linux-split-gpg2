@@ -1276,7 +1276,7 @@ class GpgServer:
                                       untrusted_args=untrusted_args)
 
     async def inquire_command_D(self, validate_sexp: 'SExprValidator', *,
-            untrusted_args: bytes) -> bool:
+                                untrusted_args: bytes) -> bool:
         # We parse and then reserialize the sexpr. Currently we assume that the
         # sexpr fits in one assuan line. This line length also implicitly
         # limits the sexpr sizes.
