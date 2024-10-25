@@ -1055,6 +1055,9 @@ class GpgServer:
         untrusted_line = await self.agent_reader.readline()
         untrusted_line = untrusted_line.rstrip(b'\n')
         self.log_io('A >>>', untrusted_line)
+        if untrusted_line.startswith(b'#'):
+            # Comment, ignore
+            return True
         untrusted_res, untrusted_args = extract_args(untrusted_line)
         if untrusted_res in (b'D', b'S'):
             # passthrough to the client
