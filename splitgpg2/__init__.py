@@ -469,7 +469,7 @@ class GpgServer:
             self.notify('connected')
 
         # wait for agent hello
-        await self.handle_agent_response()
+        await self.handle_agent_response({})
 
     def close(self, reason: str, log_level: int = logging.ERROR) -> None:
         self.log.log(log_level, '%s; Closing!', reason)
@@ -1036,8 +1036,7 @@ class GpgServer:
         writer.write(data)
 
     async def handle_agent_response(self,
-            expected_inquires: Optional[Dict[bytes, 'ArgCallback']] = None) \
-                    -> bool:
+                                    expected_inquires: Dict[bytes, 'ArgCallback']) -> bool:
         """ Receive and handle one agent response. Return whether there are
         more expected """
         assert self.agent_reader is not None
@@ -1048,8 +1047,6 @@ class GpgServer:
             while await self.agent_reader.read(1024):
                 pass
             return False
-        expected_inquires = (expected_inquires if expected_inquires is not None
-                             else {})
         # We generally consider the agent as trusted. But since the client can
         # determine part of the response we handle this here as untrusted.
         untrusted_line = await self.agent_reader.readline()
