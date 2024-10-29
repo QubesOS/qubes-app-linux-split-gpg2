@@ -1,11 +1,16 @@
 #!/bin/bash
+set -euo pipefail
 
-set -eo pipefail
-
-# prevent starting real gpg-agent locally if it's redirected via split-gpg2
+# Prevent starting real gpg-agent locally if it's redirected via split-gpg2,
+# which only uses the default GnuPG home directory.
 if [ -e /run/qubes-service/split-gpg2-client ]; then
-    exit 0
+    case "$@" in
+        *"--homedir $HOME/.gnupg "*)
+            exit 0
+            ;;
+    esac
 fi
-# otherwise, launch gpg-agent
-gpgagent=$(gpgconf --list-components | grep ^gpg-agent: | cut -d ':' -f 3)
+
+# Otherwise, launch gpg-agent.
+gpgagent="$(gpgconf --list-components | awk -F: '/^gpg-agent:/{print $3}')"
 exec "$gpgagent" "$@"
