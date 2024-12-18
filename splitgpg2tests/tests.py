@@ -63,7 +63,7 @@ Expire-Date: 0
         if 'whonix' in self.template:
             self.backend.run("date -s +10min", user="root", wait=True)
 
-        p = self.backend.run('mkdir .config; cat > .config/qubes-split-gpg2/qubes-split-gpg2.conf', passio_popen=True)
+        p = self.backend.run('mkdir -p .config/qubes-split-gpg2; cat > .config/qubes-split-gpg2/qubes-split-gpg2.conf', passio_popen=True)
         p.communicate(
                 b'[DEFAULT]\n'
                 b'autoaccept = yes\n'
