@@ -46,6 +46,8 @@ import time
 from typing import Optional, Dict, Callable, Awaitable, Tuple, Pattern, List, \
      Union, Any, TypeVar, Set, TYPE_CHECKING, Coroutine, Sequence, cast
 
+from .stdiostream import StdoutWriterProtocol
+
 if TYPE_CHECKING:
     from typing_extensions import Protocol
     from typing import TypeAlias
@@ -1405,7 +1407,7 @@ def open_stdinout_connection(*,
 
     write_transport, write_protocol = loop.run_until_complete(
             loop.connect_write_pipe(
-                lambda: asyncio.streams.FlowControlMixin(loop),
+                lambda: StdoutWriterProtocol(loop),
                 sys.stdout.buffer))
     writer = asyncio.StreamWriter(write_transport, write_protocol, None, loop)
 

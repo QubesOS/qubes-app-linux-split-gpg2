@@ -2,19 +2,18 @@
 # based on asyncio library:
 # Copyright (C) 2001 Python Software Foundation
 #
+# Copyright (C) 2024 Marek Marczykowski-Górecki
+#                               <marmarek@invisiblethingslab.com>
 #
 
 import collections
 from asyncio import protocols, events
 
-
-class FlowControlMixin(protocols.Protocol):
+class StdoutWriterProtocol(protocols.Protocol):
     """Reusable flow control logic for StreamWriter.drain().
-
     This implements the protocol methods pause_writing(),
     resume_writing() and connection_lost().  If the subclass overrides
     these it must call the super methods.
-
     StreamWriter.drain() must wait for _drain_helper() coroutine.
     """
 
@@ -26,18 +25,15 @@ class FlowControlMixin(protocols.Protocol):
         self._paused = False
         self._drain_waiters = collections.deque()
         self._connection_lost = False
+        self._closed = self._loop.create_future()
 
     def pause_writing(self):
         assert not self._paused
         self._paused = True
-        if self._loop.get_debug():
-            logger.debug("%r pauses writing", self)
 
     def resume_writing(self):
         assert self._paused
         self._paused = False
-        if self._loop.get_debug():
-            logger.debug("%r resumes writing", self)
 
         for waiter in self._drain_waiters:
             if not waiter.done():
@@ -55,6 +51,11 @@ class FlowControlMixin(protocols.Protocol):
                     waiter.set_result(None)
                 else:
                     waiter.set_exception(exc)
+        if not self._closed.done():
+            if exc is None:
+                self._closed.set_result(None)
+            else:
+                self._closed.set_exception(exc)
 
     async def _drain_helper(self):
         if self._connection_lost:
@@ -68,6 +69,6 @@ class FlowControlMixin(protocols.Protocol):
         finally:
             self._drain_waiters.remove(waiter)
 
+    # pylint: disable=unused-argument
     def _get_close_waiter(self, stream):
-        raise NotImplementedError
-
+        return self._closed
