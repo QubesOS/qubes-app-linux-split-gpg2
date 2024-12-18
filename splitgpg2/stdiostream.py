@@ -7,7 +7,8 @@
 #
 
 import collections
-from asyncio import protocols, events
+from asyncio import protocols, events, Future
+from typing import Optional, Any
 
 class StdoutWriterProtocol(protocols.Protocol):
     """Reusable flow control logic for StreamWriter.drain().
@@ -17,21 +18,22 @@ class StdoutWriterProtocol(protocols.Protocol):
     StreamWriter.drain() must wait for _drain_helper() coroutine.
     """
 
-    def __init__(self, loop=None):
+    def __init__(self, loop: Optional[events.AbstractEventLoop] = None) -> None:
         if loop is None:
             self._loop = events.get_event_loop()
         else:
             self._loop = loop
         self._paused = False
-        self._drain_waiters = collections.deque()
+        self._drain_waiters: collections.deque[Future[None]] = \
+            collections.deque()
         self._connection_lost = False
         self._closed = self._loop.create_future()
 
-    def pause_writing(self):
+    def pause_writing(self) -> None:
         assert not self._paused
         self._paused = True
 
-    def resume_writing(self):
+    def resume_writing(self) -> None:
         assert self._paused
         self._paused = False
 
@@ -39,7 +41,7 @@ class StdoutWriterProtocol(protocols.Protocol):
             if not waiter.done():
                 waiter.set_result(None)
 
-    def connection_lost(self, exc):
+    def connection_lost(self, exc: Optional[BaseException]) -> None:
         self._connection_lost = True
         # Wake up the writer(s) if currently paused.
         if not self._paused:
@@ -57,7 +59,7 @@ class StdoutWriterProtocol(protocols.Protocol):
             else:
                 self._closed.set_exception(exc)
 
-    async def _drain_helper(self):
+    async def _drain_helper(self) -> None:
         if self._connection_lost:
             raise ConnectionResetError('Connection lost')
         if not self._paused:
@@ -70,5 +72,5 @@ class StdoutWriterProtocol(protocols.Protocol):
             self._drain_waiters.remove(waiter)
 
     # pylint: disable=unused-argument
-    def _get_close_waiter(self, stream):
+    def _get_close_waiter(self, stream: Any) -> Future[None]:
         return self._closed
