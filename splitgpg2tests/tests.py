@@ -360,18 +360,18 @@ class TC_10_Thunderbird(SplitGPGBase):
 
         # run as root to not deal with /var/mail permission issues
         self.frontend.run(
-            'touch /var/mail/user; chown user:user /var/mail/user', user='root',
+            'mkdir -p Mail/new Mail/cur Mail/tmp',
             wait=True)
 
         # SMTP configuration
         self.smtp_server = self.frontend.run(
-            'python3 /usr/share/split-gpg2-tests/test_smtpd.py',
-            user='root', passio_popen=True)
+            'aiosmtpd -n -c aiosmtpd.handlers.Mailbox /home/user/Mail',
+            passio_popen=True)
 
         # IMAP configuration
         self.imap_pw = "pass"
         self.frontend.run(
-            'echo "mail_location=mbox:~/Mail:INBOX=/var/mail/%u" |\
+            'echo "mail_location=maildir:~/Mail" |\
                 sudo tee /etc/dovecot/conf.d/100-mail.conf', wait=True)
         self.frontend.run('sudo systemctl restart dovecot', wait=True)
         self.frontend.run( # set a user password because IMAP needs one for auth
@@ -422,6 +422,8 @@ user_pref("mail.identity.id1.fullName", "user");
 user_pref("mail.identity.id1.useremail", "user@localhost");
 user_pref("mail.identity.id1.smtpServer", "smtp1");
 user_pref("mail.identity.id1.compose_html", false);
+user_pref("datareporting.policy.dataSubmissionEnabled", false); // avoid message popups
+user_pref("app.donation.eoy.version.viewed", 100); // avoid message popups
 """
         imap_server = """
 user_pref("mail.server.server1.userName", "user");
@@ -542,11 +544,11 @@ class TC_20_Evolution(SplitGPGBase):
 
         # run as root to not deal with /var/mail permission issues
         self.frontend.run(
-            'touch /var/mail/user; chown user /var/mail/user', user='root',
+            'mkdir -p Mail/new Mail/cur Mail/tmp',
             wait=True)
         self.smtp_server = self.frontend.run(
-            'python3 /usr/share/split-gpg2-tests/test_smtpd.py',
-            user='root', passio_popen=True)
+            'aiosmtpd -n -c aiosmtpd.handlers.Mailbox /home/user/Mail',
+            passio_popen=True)
 
         p = self.frontend.run(
             'PYTHONPATH=$HOME/dogtail python3 {} setup 2>&1'.format(
