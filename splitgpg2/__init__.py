@@ -328,15 +328,21 @@ class GpgServer:
                       self.gnupghome, self.source_keyring_dir)
         with subprocess.Popen(export_cmd,
                               stdout=subprocess.PIPE,
-                              stdin=subprocess.DEVNULL) as exporter, (
+                              stdin=subprocess.DEVNULL,
+                              stderr=subprocess.PIPE) as exporter, (
              subprocess.Popen(import_cmd,
-                              stdin=exporter.stdout)) as importer:
+                              stdin=exporter.stdout,
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE)) as importer:
             pass
         if exporter.returncode or importer.returncode:
             self.log.warning('Unable to export keys.  If your key has a '
                              'passphrase, you might want to save it to a '
                              'file and use passphrase-file and '
-                             'pinentry-mode loopback in gpg.conf')
+                             'pinentry-mode loopback in gpg.conf.')
+            self.log.warning("Exporter output: %s", exporter.stderr)
+            self.log.warning("Importer output: %s %s",
+                             importer.stdout, importer.stderr)
         self.log.info('Subkey-only keyring %r created',
                       self.gnupghome)
 
