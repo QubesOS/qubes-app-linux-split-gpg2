@@ -60,6 +60,24 @@ Expire-Date: 0
             self.skipTest('gpg2 not installed')
         elif p.returncode != 0:
             self.fail('key generation failed: {}{}'.format(stdout, stderr))
+
+        cmd = 'gpg2 --with-colons --list-key user@localhost'
+        p = self.backend.run(cmd, passio_popen=True, passio_stderr=True)
+        (stdout, stderr) = p.communicate()
+        self.assertEqual(p.returncode, 0,
+            '{} failed: {}{}'.format(cmd, stdout.decode(), stderr.decode()))
+        fpr = [l for l in stdout.splitlines() if l.startswith(b'fpr:')][0]
+        fpr = fpr.decode().split(":")[9]
+        # add signing subkey
+        p = self.backend.run(
+            f"gpg2 --batch --passphrase "" --quick-add-key "
+            f"{fpr} rsa sign never",
+            passio_popen=True,
+            passio_stderr=True)
+        stdout, stderr = p.communicate()
+        if p.returncode != 0:
+            self.fail('subkey generation failed: {}{}'.format(
+                      stdout, stderr))
         if 'whonix' in self.template:
             self.backend.run("date -s +10min", user="root", wait=True)
 
