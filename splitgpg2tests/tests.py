@@ -43,7 +43,7 @@ class SplitGPGBase(qubes.tests.extra.ExtraTestCase):
         p = self.backend.run('mkdir -p -m 0700 .gnupg; gpg2 --gen-key --batch',
             passio_popen=True,
             passio_stderr=True)
-        p.communicate('''
+        stdout, stderr = p.communicate('''
 Key-Type: RSA
 Key-Length: 1024
 Key-Usage: sign
@@ -59,7 +59,7 @@ Expire-Date: 0
         if p.returncode == 127:
             self.skipTest('gpg2 not installed')
         elif p.returncode != 0:
-            self.fail('key generation failed')
+            self.fail('key generation failed: {}{}'.format(stdout, stderr))
         if 'whonix' in self.template:
             self.backend.run("date -s +10min", user="root", wait=True)
 
