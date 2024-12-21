@@ -1,3 +1,34 @@
+split-gpg2 (1.1.2) unstable; urgency=medium
+
+  [ Demi Marie Obenour ]
+  * Fix tests for Ed448 and X448 keys
+  * Do not test Ed448 or X448 unless GnuPG says they are supported
+  * Ignore NOP command
+  * Return fake 'OK' to setting 'display' option
+  * Remove OptionHandlingType.override
+  * Give fake OK response to OPTIONS pinentry-mode=ask
+  * Fix bytes vs str mismatch
+  * Properly indent a function parameter
+  * Understand Assuan comments
+  * Always pass expected_inquires dict
+  * Clean up input validation
+  * Allow "KEYINFO --list"
+  * Use unrestricted connection for HAVEKEY --list and KEYINFO --list
+
+  [ Marek Marczykowski-Górecki ]
+  * tests: assertEquals -> assertEqual
+  * tests: fix creating config dir
+  * Factor in FlowControlMixin
+  * Convert FlowControlMixin to StdoutWriterProtocol
+  * ci: drop R4.1 add R4.3
+  * Add type annotations to StdoutWriterProtocol
+  * Do not output keyring import messages to the client stderr
+  * tests: log stdout/stderr on key generation failure
+  * tests: generate signing subkey
+  * tests: update Thunderbird/Evolution interactions
+
+ -- Marek Marczykowski-Górecki <marmarek@invisiblethingslab.com>  Sat, 21 Dec 2024 16:08:57 +0100
+
 split-gpg2 (1.1.1) unstable; urgency=medium
 
   [ Yanase Yuki ]
