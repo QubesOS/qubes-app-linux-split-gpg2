@@ -58,6 +58,16 @@ def open_accounts(app):
 def get_sibling_offset(node, offset):
     return node.parent.children[node.indexInParent+offset]
 
+def get_sibling_button_maybe(button):
+    try:
+        # if there is a sibling button (without the name) that's the one that works
+        button_sibling = button.parent.children[button.indexInParent + 1]
+        if button_sibling.roleName == "push button":
+            return button_sibling
+    except KeyError:
+        pass
+    return button
+
 def add_local_account(app):
     accounts_tab = None
     settings = None
@@ -78,16 +88,16 @@ def add_local_account(app):
     wizard.button('Next').doActionNamed('click')
     # Receiving Email tab
     time.sleep(2)
-    wizard.menuItem('Local delivery').doActionNamed('click')
-    wizard.childLabelled('Local Delivery File:').parent.button('(None)').\
+    wizard.menuItem('Maildir-format mail directories').doActionNamed('click')
+    wizard.childLabelled('Mail Directory:', showingOnly=True).parent.menuItem('Other…').\
         doActionNamed('click')
-    file_chooser = app.child('Choose a local delivery file',
+    file_chooser = app.child('Choose a Maildir mail directory',
         roleName='file chooser')
     file_chooser.child('File System Root').doActionNamed('click')
-    file_chooser.child('var').doActionNamed('activate')
-    file_chooser.child('spool').doActionNamed('activate')
-    file_chooser.child('mail').doActionNamed('activate')
+    file_chooser.child('home').doActionNamed('activate')
     file_chooser.child('user').doActionNamed('activate')
+    file_chooser.child('Mail').doActionNamed('activate')
+    file_chooser.button('Open').doActionNamed('click')
     time.sleep(1)
     wizard.button('Next').doActionNamed('click')
     # Receiving Options tab
@@ -138,7 +148,9 @@ def attach(app, compose_window, path):
     file_chooser.button('Attach').doActionNamed('click')
 
 def send_email(app, sign=False, encrypt=False, inline=False, attachment=None):
-    app.button('New').doActionNamed('click')
+    new_button = app.button('New')
+    new_button = get_sibling_button_maybe(new_button)
+    new_button.doActionNamed('click')
     new_message = app.child('Compose Message', roleName='frame')
     new_message.textentry('To:').text = 'user@localhost,'
     new_message.childLabelled('Subject:').text = subject
@@ -160,8 +172,10 @@ def send_email(app, sign=False, encrypt=False, inline=False, attachment=None):
     new_message.button('Send').doActionNamed('click')
 
 def receive_message(app, signed=False, encrypted=False, attachment=None):
-    app.button('Send / Receive').doActionNamed('click')
-    app.child(name='Inbox.*', roleName='table cell').doActionNamed('edit')
+    send_receive = app.button('Send / Receive')
+    send_receive = get_sibling_button_maybe(send_receive)
+    send_receive.doActionNamed('click')
+    app.child(name='Inbox .*', roleName='table cell').doActionNamed('edit')
     messages = app.child('Messages', roleName='panel')
     messages.child(subject).grabFocus()
     message = app.child('Evolution Mail Display', roleName='document web')

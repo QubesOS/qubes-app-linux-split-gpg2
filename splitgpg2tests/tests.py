@@ -43,7 +43,7 @@ class SplitGPGBase(qubes.tests.extra.ExtraTestCase):
         p = self.backend.run('mkdir -p -m 0700 .gnupg; gpg2 --gen-key --batch',
             passio_popen=True,
             passio_stderr=True)
-        p.communicate('''
+        stdout, stderr = p.communicate('''
 Key-Type: RSA
 Key-Length: 1024
 Key-Usage: sign
@@ -59,11 +59,29 @@ Expire-Date: 0
         if p.returncode == 127:
             self.skipTest('gpg2 not installed')
         elif p.returncode != 0:
-            self.fail('key generation failed')
+            self.fail('key generation failed: {}{}'.format(stdout, stderr))
+
+        cmd = 'gpg2 --with-colons --list-key user@localhost'
+        p = self.backend.run(cmd, passio_popen=True, passio_stderr=True)
+        (stdout, stderr) = p.communicate()
+        self.assertEqual(p.returncode, 0,
+            '{} failed: {}{}'.format(cmd, stdout.decode(), stderr.decode()))
+        fpr = [l for l in stdout.splitlines() if l.startswith(b'fpr:')][0]
+        fpr = fpr.decode().split(":")[9]
+        # add signing subkey
+        p = self.backend.run(
+            f"gpg2 --batch --passphrase "" --quick-add-key "
+            f"{fpr} rsa sign never",
+            passio_popen=True,
+            passio_stderr=True)
+        stdout, stderr = p.communicate()
+        if p.returncode != 0:
+            self.fail('subkey generation failed: {}{}'.format(
+                      stdout, stderr))
         if 'whonix' in self.template:
             self.backend.run("date -s +10min", user="root", wait=True)
 
-        p = self.backend.run('mkdir .config; cat > .config/qubes-split-gpg2/qubes-split-gpg2.conf', passio_popen=True)
+        p = self.backend.run('mkdir -p .config/qubes-split-gpg2; cat > .config/qubes-split-gpg2/qubes-split-gpg2.conf', passio_popen=True)
         p.communicate(
                 b'[DEFAULT]\n'
                 b'autoaccept = yes\n'
@@ -80,25 +98,25 @@ Expire-Date: 0
         cmd = 'gpg2 -a --export user@localhost'
         p = self.backend.run(cmd, passio_popen=True, passio_stderr=True)
         (pubkey, stderr) = p.communicate()
-        self.assertEquals(p.returncode, 0,
+        self.assertEqual(p.returncode, 0,
             '{} failed: {}'.format(cmd, stderr.decode()))
         cmd = 'gpg2 --import'
         p = self.frontend.run(cmd, passio_popen=True, passio_stderr=True)
         (stdout, stderr) = p.communicate(pubkey)
-        self.assertEquals(p.returncode, 0,
+        self.assertEqual(p.returncode, 0,
             '{} failed: {}{}'.format(cmd, stdout.decode(), stderr.decode()))
         # and set as trusted
         cmd = 'gpg2 --with-colons --list-key user@localhost'
         p = self.frontend.run(cmd, passio_popen=True, passio_stderr=True)
         (stdout, stderr) = p.communicate()
-        self.assertEquals(p.returncode, 0,
+        self.assertEqual(p.returncode, 0,
             '{} failed: {}{}'.format(cmd, stdout.decode(), stderr.decode()))
         fpr = [l for l in stdout.splitlines() if l.startswith(b'fpr:')][0]
         cmd = 'gpg2 --with-colons --import-ownertrust'
         p = self.frontend.run(cmd, passio_popen=True, passio_stderr=True)
         (stdout, stderr) = p.communicate(
             fpr.replace(b'fpr:::::::::', b'') + b'6:\n')
-        self.assertEquals(p.returncode, 0,
+        self.assertEqual(p.returncode, 0,
             '{} failed: {}{}'.format(cmd, stdout.decode(), stderr.decode()))
 
 
@@ -106,19 +124,19 @@ class TC_00_Direct(SplitGPGBase):
     def test_000_version(self):
         cmd = 'gpg2 --version'
         p = self.frontend.run(cmd, wait=True)
-        self.assertEquals(p, 0, '{} failed'.format(cmd))
+        self.assertEqual(p, 0, '{} failed'.format(cmd))
 
     def test_010_list_keys(self):
         cmd = 'gpg2 --list-keys'
         p = self.frontend.run(cmd, passio_popen=True, passio_stderr=True)
         (keys, stderr) = p.communicate()
-        self.assertEquals(p.returncode, 0,
+        self.assertEqual(p.returncode, 0,
             '{} failed: {}'.format(cmd, stderr.decode()))
         self.assertIn("Qubes test", keys.decode())
         cmd = 'gpg2 --list-secret-keys'
         p = self.frontend.run(cmd, passio_popen=True, passio_stderr=True)
         (keys, stderr) = p.communicate()
-        self.assertEquals(p.returncode, 0,
+        self.assertEqual(p.returncode, 0,
             '{} failed: {}'.format(cmd, stderr.decode()))
         self.assertIn("Qubes test", keys.decode())
 
@@ -128,25 +146,25 @@ class TC_00_Direct(SplitGPGBase):
         cmd = 'gpg2 -a --export-secret-keys user@localhost'
         p = self.frontend.run(cmd, passio_popen=True, passio_stderr=True)
         keys, stderr = p.communicate()
-        self.assertNotEquals(p.returncode, 0,
+        self.assertNotEqual(p.returncode, 0,
             '{} succeeded unexpectedly: {}'.format(cmd, stderr.decode()))
-        self.assertEquals(keys.decode(), '')
+        self.assertEqual(keys.decode(), '')
 
     def test_030_sign_verify(self):
         msg = "Test message"
         cmd = 'gpg2 -a --sign -u user@localhost'
         p = self.frontend.run(cmd, passio_popen=True, passio_stderr=True)
         (signature, stderr) = p.communicate(msg.encode())
-        self.assertEquals(p.returncode, 0,
+        self.assertEqual(p.returncode, 0,
             '{} failed: {}'.format(cmd, stderr.decode()))
-        self.assertNotEquals('', signature.decode())
+        self.assertNotEqual('', signature.decode())
 
         cmd = "gpg2"
         p = self.frontend.run(cmd, passio_popen=True, passio_stderr=True)
         decoded_msg, verification_result = p.communicate(signature)
-        self.assertEquals(p.returncode, 0,
+        self.assertEqual(p.returncode, 0,
             '{} failed: {}'.format(cmd, verification_result.decode()))
-        self.assertEquals(decoded_msg.decode(), msg)
+        self.assertEqual(decoded_msg.decode(), msg)
         self.assertIn('\ngpg: Good signature from', verification_result.decode())
 
     def test_031_sign_verify_detached(self):
@@ -155,15 +173,15 @@ class TC_00_Direct(SplitGPGBase):
         cmd = 'gpg2 --output=signature.asc -a -b --sign -u user@localhost message'
         p = self.frontend.run(cmd, passio_popen=True, passio_stderr=True)
         stdout, stderr = p.communicate()
-        self.assertEquals(p.returncode, 0,
+        self.assertEqual(p.returncode, 0,
             '{} failed: {}'.format(cmd, stderr.decode()))
 
         cmd = 'gpg2 --verify signature.asc message'
         p = self.frontend.run(cmd, passio_popen=True, passio_stderr=True)
         decoded_msg, verification_result = p.communicate()
-        self.assertEquals(p.returncode, 0,
+        self.assertEqual(p.returncode, 0,
             '{} failed: {}'.format(cmd, verification_result.decode()))
-        self.assertEquals(decoded_msg.decode(), '')
+        self.assertEqual(decoded_msg.decode(), '')
         self.assertIn('\ngpg: Good signature from', verification_result.decode())
 
         # break the message and check again
@@ -171,9 +189,9 @@ class TC_00_Direct(SplitGPGBase):
         cmd = 'gpg2 --verify signature.asc message'
         p = self.frontend.run(cmd, passio_popen=True, passio_stderr=True)
         decoded_msg, verification_result = p.communicate()
-        self.assertNotEquals(p.returncode, 0,
+        self.assertNotEqual(p.returncode, 0,
             '{} unexpecedly succeeded: {}'.format(cmd, verification_result.decode()))
-        self.assertEquals(decoded_msg.decode(), '')
+        self.assertEqual(decoded_msg.decode(), '')
         self.assertIn('\ngpg: BAD signature from', verification_result.decode())
 
     def test_040_encrypt_decrypt(self):
@@ -181,32 +199,32 @@ class TC_00_Direct(SplitGPGBase):
         cmd = 'gpg2 --trust-model tofu -a --encrypt -r user@localhost'
         p = self.frontend.run(cmd, passio_popen=True, passio_stderr=True)
         (encrypted, stderr) = p.communicate(msg.encode())
-        self.assertEquals(p.returncode, 0,
+        self.assertEqual(p.returncode, 0,
             '{} failed: {}'.format(cmd, stderr.decode()))
-        self.assertNotEquals('', encrypted.decode())
+        self.assertNotEqual('', encrypted.decode())
 
         cmd = "gpg2 --decrypt"
         p = self.frontend.run(cmd, passio_popen=True, passio_stderr=True)
         decoded_msg, stderr = p.communicate(encrypted)
-        self.assertEquals(p.returncode, 0,
+        self.assertEqual(p.returncode, 0,
             '{} failed: {}'.format(cmd, stderr.decode()))
-        self.assertEquals(decoded_msg.decode(), msg)
+        self.assertEqual(decoded_msg.decode(), msg)
 
     def test_041_sign_encrypt_decrypt(self):
         msg = "Test message"
         cmd = 'gpg2 --trust-model tofu -a --sign --encrypt -u user@localhost -r user@localhost'
         p = self.frontend.run(cmd, passio_popen=True, passio_stderr=True)
         (encrypted, stderr) = p.communicate(msg.encode())
-        self.assertEquals(p.returncode, 0,
+        self.assertEqual(p.returncode, 0,
             '{} failed: {}'.format(cmd, stderr.decode()))
-        self.assertNotEquals('', encrypted.decode())
+        self.assertNotEqual('', encrypted.decode())
 
         cmd = "gpg2 --decrypt"
         p = self.frontend.run(cmd, passio_popen=True, passio_stderr=True)
         decoded_msg, verification_result = p.communicate(encrypted)
-        self.assertEquals(p.returncode, 0,
+        self.assertEqual(p.returncode, 0,
             '{} failed: {}'.format(cmd, verification_result.decode()))
-        self.assertEquals(decoded_msg.decode(), msg)
+        self.assertEqual(decoded_msg.decode(), msg)
         self.assertIn('\ngpg: Good signature from', verification_result.decode())
 
     def test_050_generate(self):
@@ -287,7 +305,7 @@ Expire-Date: 0
             passio_popen=True)
         p.communicate(stdout)
         # secret key import should be refused
-        self.assertNotEquals(p.returncode, 0)
+        self.assertNotEqual(p.returncode, 0)
 
         p = self.frontend.run('gpg2 --list-keys',
             passio_popen=True)
@@ -342,18 +360,18 @@ class TC_10_Thunderbird(SplitGPGBase):
 
         # run as root to not deal with /var/mail permission issues
         self.frontend.run(
-            'touch /var/mail/user; chown user:user /var/mail/user', user='root',
+            'mkdir -p Mail/new Mail/cur Mail/tmp',
             wait=True)
 
         # SMTP configuration
         self.smtp_server = self.frontend.run(
-            'python3 /usr/share/split-gpg2-tests/test_smtpd.py',
-            user='root', passio_popen=True)
+            'aiosmtpd -n -c aiosmtpd.handlers.Mailbox /home/user/Mail',
+            passio_popen=True)
 
         # IMAP configuration
         self.imap_pw = "pass"
         self.frontend.run(
-            'echo "mail_location=mbox:~/Mail:INBOX=/var/mail/%u" |\
+            'echo "mail_location=maildir:~/Mail" |\
                 sudo tee /etc/dovecot/conf.d/100-mail.conf', wait=True)
         self.frontend.run('sudo systemctl restart dovecot', wait=True)
         self.frontend.run( # set a user password because IMAP needs one for auth
@@ -381,7 +399,7 @@ class TC_10_Thunderbird(SplitGPGBase):
         cmd = 'gpg2 -K --with-colons'
         p = self.frontend.run(cmd, passio_popen=True)
         (stdout, _) = p.communicate()
-        self.assertEquals(p.returncode, 0, 'Failed to determin key id')
+        self.assertEqual(p.returncode, 0, 'Failed to determin key id')
         keyid = stdout.decode('utf-8').split('\n')[1]
         keyid = keyid.split(':')[9]
         keyid = keyid[-16:]
@@ -404,6 +422,8 @@ user_pref("mail.identity.id1.fullName", "user");
 user_pref("mail.identity.id1.useremail", "user@localhost");
 user_pref("mail.identity.id1.smtpServer", "smtp1");
 user_pref("mail.identity.id1.compose_html", false);
+user_pref("datareporting.policy.dataSubmissionEnabled", false); // avoid message popups
+user_pref("app.donation.eoy.version.viewed", 100); // avoid message popups
 """
         imap_server = """
 user_pref("mail.server.server1.userName", "user");
@@ -456,7 +476,7 @@ user_pref("mail.identity.id1.sign_mail", false);
                 self.scriptpath, self.tb_name, self.profile_dir, self.imap_pw),
             passio_popen=True)
         (stdout, _) = p.communicate()
-        self.assertEquals(p.returncode, 0,
+        self.assertEqual(p.returncode, 0,
             'Thunderbird send/receive failed: {}'.format(
                 stdout.decode('ascii', 'ignore')))
 
@@ -468,7 +488,7 @@ user_pref("mail.identity.id1.sign_mail", false);
                 self.scriptpath, self.tb_name, self.profile_dir, self.imap_pw),
             passio_popen=True)
         (stdout, _) = p.communicate()
-        self.assertEquals(p.returncode, 0,
+        self.assertEqual(p.returncode, 0,
             'Thunderbird send/receive failed: {}'.format(
                 stdout.decode('ascii', 'ignore')))
 
@@ -480,7 +500,7 @@ user_pref("mail.identity.id1.sign_mail", false);
                 self.scriptpath, self.tb_name, self.profile_dir, self.imap_pw),
             passio_popen=True)
         (stdout, _) = p.communicate()
-        self.assertEquals(p.returncode, 0,
+        self.assertEqual(p.returncode, 0,
             'Thunderbird send/receive failed: {}'.format(
                 stdout.decode('ascii', 'ignore')))
 
@@ -524,11 +544,11 @@ class TC_20_Evolution(SplitGPGBase):
 
         # run as root to not deal with /var/mail permission issues
         self.frontend.run(
-            'touch /var/mail/user; chown user /var/mail/user', user='root',
+            'mkdir -p Mail/new Mail/cur Mail/tmp',
             wait=True)
         self.smtp_server = self.frontend.run(
-            'python3 /usr/share/split-gpg2-tests/test_smtpd.py',
-            user='root', passio_popen=True)
+            'aiosmtpd -n -c aiosmtpd.handlers.Mailbox /home/user/Mail',
+            passio_popen=True)
 
         p = self.frontend.run(
             'PYTHONPATH=$HOME/dogtail python3 {} setup 2>&1'.format(
@@ -550,7 +570,7 @@ class TC_20_Evolution(SplitGPGBase):
                 self.scriptpath),
             passio_popen=True)
         (stdout, _) = p.communicate()
-        self.assertEquals(p.returncode, 0,
+        self.assertEqual(p.returncode, 0,
             'Evolution send/receive failed: {}'.format(
                 stdout.decode('ascii', 'ignore')))
 
@@ -561,7 +581,7 @@ class TC_20_Evolution(SplitGPGBase):
                 self.scriptpath),
             passio_popen=True)
         (stdout, _) = p.communicate()
-        self.assertEquals(p.returncode, 0,
+        self.assertEqual(p.returncode, 0,
             'Evolution send/receive failed: {}'.format(
                 stdout.decode('ascii', 'ignore')))
 
@@ -573,7 +593,7 @@ class TC_20_Evolution(SplitGPGBase):
                 self.scriptpath),
             passio_popen=True)
         (stdout, _) = p.communicate()
-        self.assertEquals(p.returncode, 0,
+        self.assertEqual(p.returncode, 0,
             'Evolution send/receive failed: {}'.format(
                 stdout.decode('ascii', 'ignore')))
 

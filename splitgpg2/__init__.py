@@ -46,6 +46,8 @@ import time
 from typing import Optional, Dict, Callable, Awaitable, Tuple, Pattern, List, \
      Union, Any, TypeVar, Set, TYPE_CHECKING, Coroutine, Sequence, cast
 
+from .stdiostream import StdoutWriterProtocol
+
 if TYPE_CHECKING:
     from typing_extensions import Protocol
     from typing import TypeAlias
@@ -331,15 +333,21 @@ class GpgServer:
                       self.gnupghome, self.source_keyring_dir)
         with subprocess.Popen(export_cmd,
                               stdout=subprocess.PIPE,
-                              stdin=subprocess.DEVNULL) as exporter, (
+                              stdin=subprocess.DEVNULL,
+                              stderr=subprocess.PIPE) as exporter, (
              subprocess.Popen(import_cmd,
-                              stdin=exporter.stdout)) as importer:
+                              stdin=exporter.stdout,
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE)) as importer:
             pass
         if exporter.returncode or importer.returncode:
             self.log.warning('Unable to export keys.  If your key has a '
                              'passphrase, you might want to save it to a '
                              'file and use passphrase-file and '
-                             'pinentry-mode loopback in gpg.conf')
+                             'pinentry-mode loopback in gpg.conf.')
+            self.log.warning("Exporter output: %s", exporter.stderr)
+            self.log.warning("Importer output: %s %s",
+                             importer.stdout, importer.stderr)
         self.log.info('Subkey-only keyring %r created',
                       self.gnupghome)
 
@@ -1453,7 +1461,7 @@ def open_stdinout_connection(*,
 
     write_transport, write_protocol = loop.run_until_complete(
             loop.connect_write_pipe(
-                lambda: asyncio.streams.FlowControlMixin(loop),
+                lambda: StdoutWriterProtocol(loop),
                 sys.stdout.buffer))
     writer = asyncio.StreamWriter(write_transport, write_protocol, None, loop)
 

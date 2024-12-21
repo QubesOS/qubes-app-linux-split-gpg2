@@ -119,7 +119,7 @@ def retry_if_failed(max_tries):
                     func(*args, **kwargs)
                     break # if successful
                 except Exception as e:
-                    if retry == max_tries:
+                    if retry == max_tries-1:
                         raise e
                     else:
                         print("failed during setup in {}.\n Retrying".format(
@@ -151,20 +151,27 @@ def export_pub_key():
 
 @retry_if_failed(max_tries=3)
 def enter_imap_passwd(tb):
-    # check new mail so client can realize IMAP requires entering a password
-    get_messages(tb)
+    try:
+        pass_prompt = tb.app.findChild(orPredicate(
+            GenericPredicate(name='Enter your password for user', roleName='frame'),
+            GenericPredicate(name='Enter your password for user', roleName='dialog')
+        ))
+    except tree.SearchError:
+        # check new mail so client can realize IMAP requires entering a password
+        get_messages(tb)
     # password entry
     pass_prompt = tb.app.findChild(orPredicate(
         GenericPredicate(name='Enter your password for user', roleName='frame'),
         GenericPredicate(name='Enter your password for user', roleName='dialog')
     ))
     pass_textbox = pass_prompt.findChild(GenericPredicate(roleName='password text'))
-    pass_textbox.text = tb.imap_pw
+    pass_textbox.typeText(tb.imap_pw)
     pass_prompt.childNamed("Use Password Manager to remember this password.")\
                .doActionNamed('check')
     pass_prompt.findChild(orPredicate(
         GenericPredicate(name='OK', roleName='push button'),       # tb < 91
-        GenericPredicate(name='Sign in', roleName='push button'))  # tb >= 91
+        GenericPredicate(name='Sign in', roleName='push button'),  # tb >= 91, tb < 128
+        GenericPredicate(name='OK', roleName='button'))  # tb >= 128
     ).doActionNamed('press')
 
 def accept_qubes_attachments(tb):
@@ -237,8 +244,14 @@ def configure_openpgp_account(tb):
     accept_dialog = tb.app.findChild(orPredicate(
         GenericPredicate(name='.*(%s).*' % keyid),
         GenericPredicate(name='.[0-9A-F]*%s' % keyid),
-        )).parent
-    accept_dialog.childNamed('OK').doActionNamed('press')
+        GenericPredicate(name='ID: 0x%s' % keyid),
+        )).parent.parent
+    try:
+        accept_dialog.childNamed("Accepted.*").doActionNamed("select")
+    except tree.SearchError:
+        # old TB
+        pass
+    accept_dialog.childNamed('OK|Import').doActionNamed('press')
     tb.app.childNamed('Success! Keys imported.*').childNamed('OK').doActionNamed(
         'press')
     doubleClick(*key_manager.findChild(
@@ -256,16 +269,37 @@ def configure_openpgp_account(tb):
 
 
 def get_messages(tb):
-    tb.app.child(name='user@localhost',
-            roleName='table row').doActionNamed('activate')
-    tb.app.button('Get Messages').doActionNamed('press')
-    tb.app.menuItem('Get All New Messages').doActionNamed('click')
-    tb.app.child(name='Inbox.*', roleName='table row').doActionNamed(
-        'activate')
+    try:
+        # TB >= 115
+        try:
+            # TB >= 128
+            tb.app.child('Get Messages', roleName='button').doActionNamed('press')
+        except tree.SearchError:
+            # TB < 128
+            tb.app.button('Get Messages').doActionNamed('press')
+        tb.app.child(name='Inbox.*', roleName='tree item').doActionNamed(
+            'activate')
+    except tree.SearchError:
+        # TB < 115
+        tb.app.child(name='user@localhost',
+                roleName='table row').doActionNamed('activate')
+        tb.app.button('Get Messages').doActionNamed('press')
+        tb.app.menuItem('Get All New Messages').doActionNamed('click')
+        tb.app.child(name='Inbox.*', roleName='table row').doActionNamed(
+            'activate')
+
 
 def attach(tb, compose_window, path):
-    compose_window.button('Attach').button('Attach').doActionNamed('press')
-    compose_window.button('Attach').menuItem('File.*').doActionNamed('click')
+    try:
+        # TB >= 128
+        compose_window.child('Attach', roleName='button').\
+                       doActionNamed('press')
+        compose_window.child('Attach', roleName='button').\
+                       menuItem('File.*').doActionNamed('click')
+    except tree.SearchError:
+        # TB < 128
+        compose_window.button('Attach').button('Attach').doActionNamed('press')
+        compose_window.button('Attach').menuItem('File.*').doActionNamed('click')
     # for some reason on some thunderbird versions do not expose 'Attach File'
     # dialog through accessibility API, use xdotool instead
     subprocess.check_call(
@@ -293,18 +327,25 @@ def attach(tb, compose_window, path):
 
 def send_email(tb, sign=False, encrypt=False, inline=False, attachment=None):
     config.searchCutoffCount = 20
-    write = tb.app.button('Write')
+    try:
+        # TB >= 128
+        write = tb.app.child(name='New Message', roleName='button')
+    except tree.SearchError:
+        try:
+            write = tb.app.button('New Message')
+        except tree.SearchError:
+            write = tb.app.button('Write')
     config.searchCutoffCount = defaultCutoffCount
     write.doActionNamed('press')
     compose = tb.app.child(name='Write: .*', roleName='frame')
     to_entry = compose.findChild(TBEntry(name='To'))
-    to_entry.text = 'user@localhost'
+    to_entry.typeText('user@localhost')
     # lets thunderbird settle down on default values (after filling recipients)
     time.sleep(1)
     subject_entry = compose.findChild(
         orPredicate(GenericPredicate(name='Subject:', roleName='entry'),
                     TBEntry(name='Subject')))
-    subject_entry.text = subject
+    subject_entry.typeText(subject)
     try:
         compose_document = compose.child(roleName='document web')
         try:
@@ -315,18 +356,29 @@ def send_email(tb, sign=False, encrypt=False, inline=False, attachment=None):
     except tree.SearchError:
         compose.child(
             roleName='document frame').text = 'This is test message'
-    security = compose.findChild(
-        GenericPredicate(name='Security', roleName='push button'))
+    try:
+        # TB >= 128
+        security = compose.findChild(
+            GenericPredicate(name='Security|OpenPGP', roleName='button'))
+    except tree.SearchError:
+        # TB < 128
+        security = compose.findChild(
+            GenericPredicate(name='Security|OpenPGP', roleName='push button'))
     security.doActionNamed('press')
-    sign_button = security.childNamed('Digitally Sign This Message')
-    encrypt_button = security.childNamed('Require Encryption')
+    sign_button = security.childNamed('Digitally Sign.*')
+    encrypt_button = security.childNamed('Require Encryption|Encrypt')
     if sign_button.checked != sign:
         sign_button.doActionNamed('click')
     if encrypt_button.checked != encrypt:
         encrypt_button.doActionNamed('click')
     if attachment:
         attach(tb, compose, attachment)
-    compose.button('Send').doActionNamed('press')
+    try:
+        # TB >= 128
+        compose.child('Send', roleName='button').doActionNamed('press')
+    except tree.SearchError:
+        # TB < 128
+        compose.button('Send').doActionNamed('press')
     config.searchCutoffCount = 5
     try:
         if encrypt:
@@ -363,16 +415,36 @@ def send_email(tb, sign=False, encrypt=False, inline=False, attachment=None):
 
 def receive_message(tb, signed=False, encrypted=False, attachment=None):
     get_messages(tb)
-    config.searchCutoffCount = 5
+    if encrypted:
+        config.searchCutoffCount = 5
+        try:
+            # TB >= 128
+            tb.app.child(name='user[^,]*, .*, \.\.\..*',
+                     roleName='table row').doActionNamed('clickAncestor')
+        except tree.SearchError:
+            try:
+                # TB >= 115
+                tb.app.child(name='user[^,]*, .*, \.\.\..*',
+                         roleName='tree item').doActionNamed('activate')
+            except tree.SearchError:
+                # TB < 115
+                tb.app.child(name='Encrypted Message .*|.*\.\.\. .*',
+                         roleName='table row').doActionNamed('activate')
+        finally:
+            config.searchCutoffCount = defaultCutoffCount
     try:
-        tb.app.child(name='Encrypted Message .*|.*\.\.\. .*',
-                 roleName='table row').doActionNamed('activate')
+        # TB >= 128
+        tb.app.child(name='.*{}.*'.format(subject),
+                     roleName='table row').doActionNamed('clickAncestor')
     except tree.SearchError:
-        pass
-    finally:
-        config.searchCutoffCount = defaultCutoffCount
-    tb.app.child(name='.*{}.*'.format(subject),
-             roleName='table row').doActionNamed('activate')
+        try:
+            # TB >= 115
+            tb.app.child(name='.*{}.*'.format(subject),
+                         roleName='tree item').doActionNamed('activate')
+        except tree.SearchError:
+            # TB < 115
+            tb.app.child(name='.*{}.*'.format(subject),
+                     roleName='table row').doActionNamed('activate')
     # wait a little to TB decrypt/check the message
     time.sleep(2)
     # dogtail always add '$' at the end of regexp; and also "Escape all
@@ -399,11 +471,10 @@ def receive_message(tb, signed=False, encrypted=False, attachment=None):
     #        msg_body = msg.text
     config.searchCutoffCount = 5
     try:
-        if signed or encrypted:
-            tb.app.button('OpenPGP.*').doActionNamed('press')
-            # 'Message Security - OpenPGP' is an internal label,
-            # nested 2 levels into the popup
-            message_security = tb.app.child('Message Security - OpenPGP')
+        tb.app.button('OpenPGP.*').doActionNamed('press')
+        # 'Message Security - OpenPGP' is an internal label,
+        # nested 2 levels into the popup
+        message_security = tb.app.child('Message Security - OpenPGP')
     except tree.SearchError:
         # alternative way of opening 'message security'
         keyCombo('<Control><Alt>s')
@@ -430,8 +501,14 @@ def receive_message(tb, signed=False, encrypted=False, attachment=None):
         attachment_size = attachment_label.parent.children[
             attachment_label.indexInParent + 1 + offset]
         assert attachment_size.text[0] != '0'
-        attachment_save = attachment_label.parent.children[
-            attachment_label.indexInParent + 2 + offset].button('Save.*')
+        attachment_save_parent = attachment_label.parent.children[
+            attachment_label.indexInParent + 2 + offset]
+        try:
+            # TB >= 128
+            attachment_save = attachment_save_parent.child('Save.*', roleName='button')
+        except tree.SearchError:
+            # TB < 128
+            attachment_save = attachment_save_parent.button('Save.*')
         try:
             # try child button first
             attachment_save.children[1].doActionNamed('press')
@@ -444,11 +521,14 @@ def receive_message(tb, signed=False, encrypted=False, attachment=None):
         # for some reasons some Thunderbird versions do not expose 'Attach File'
         # dialog through accessibility API, use xdotool instead
         save_as = tb.app.findChild(
-            GenericPredicate(name='Save All Attachments',
+            GenericPredicate(name='Save All Attachments|Save Attachment',
                                 roleName='file chooser'))
         click(*save_as.childNamed('Home').position)
         click(*save_as.childNamed('Desktop').position)
-        save_as.childNamed('Open').doActionNamed('click')
+        if save_as.name == 'Save Attachment':
+            save_as.childNamed('Save').doActionNamed('click')
+        else:
+            save_as.childNamed('Open').doActionNamed('click')
         # save_as = tb.app.dialog('Save .*Attachment.*')
         # places = save_as.child(roleName='table',
         #    name='Places')
