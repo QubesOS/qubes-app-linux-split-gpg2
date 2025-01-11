@@ -56,6 +56,10 @@ or
 gpg-server-vm$ gpg --gen-key
 ```
 
+> [!NOTE]
+> * Ensure your key doesn't have a password set.
+> * Ensure you have subkeys for signing and, if needed, encryption.
+
 In dom0 enable the `split-gpg2-client` service in the client domain, for example via the command-line:
 
 ```shell
