@@ -1,6 +1,6 @@
 Name:           split-gpg2
 Version:        @VERSION@
-Release:        1%{dist}
+Release:        1%{?dist}
 Summary:        split-gpg2 for Qubes
 BuildArch:      noarch
 
