@@ -1,6 +1,6 @@
 Name:           split-gpg2
 Version:        @VERSION@
-Release:        1%{dist}
+Release:        1%{?dist}
 Summary:        split-gpg2 for Qubes
 BuildArch:      noarch
 
@@ -13,10 +13,19 @@ BuildRequires:  make
 BuildRequires:  python3-rpm-macros
 BuildRequires:  systemd-rpm-macros
 BuildRequires:  python%{python3_pkgversion}-setuptools
+%if 0%{?is_opensuse}
+# for directory ownership
+BuildRequires:  qubes-core-qrexec
+BuildRequires:  gpg2
+%endif
 Requires:       python3-pyxdg
 Requires:       socat
 Requires:       bash
+%if 0%{?is_opensuse}
+Requires:       gpg2 >= 2.1.0
+%else
 Requires:       gnupg2 >= 2.1.0
+%endif
 Requires:       systemd
 Requires:       zenity
 Recommends:     libnotify
@@ -68,6 +77,7 @@ rm -rf $RPM_BUILD_ROOT
 /usr/share/doc/split-gpg2/
 
 %files tests
+%dir /usr/share/split-gpg2-tests
 /usr/share/split-gpg2-tests/test_evolution.py*
 /usr/share/split-gpg2-tests/test_thunderbird.py*
 /usr/share/split-gpg2-tests/test_smtpd.py*
