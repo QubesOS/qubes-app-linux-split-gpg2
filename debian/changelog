@@ -1,3 +1,17 @@
+split-gpg2 (1.1.5) unstable; urgency=medium
+
+  [ Rot127 ]
+  * Add note to remind the user that keys have no password and all
+    necessary keys are present.
+
+  [ Marek Marczykowski-Górecki ]
+  * tests: adjust error handling
+  * tests: adjust disabling donation prompt, yet again
+  * rpm: adjust for openSUSE
+  * rpm: fix usage of %dist macro
+
+ -- Marek Marczykowski-Górecki <marmarek@invisiblethingslab.com>  Mon, 07 Apr 2025 16:23:07 +0200
+
 split-gpg2 (1.1.4) unstable; urgency=medium
 
   * tests: update for Thunderbird version/config in Whonix 17
