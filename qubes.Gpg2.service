@@ -7,4 +7,4 @@ for d in /etc "${XDG_CONFIG_HOME:-$HOME/.config}"; do
     fi
 done
 
-/usr/bin/python3 -m splitgpg2
+/usr/bin/python3 -P -m splitgpg2
