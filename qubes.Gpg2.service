@@ -7,4 +7,15 @@ for d in /etc "${XDG_CONFIG_HOME:-$HOME/.config}"; do
     fi
 done
 
-/usr/bin/python3 -P -m splitgpg2
+# The Python on Ubuntu 22.04 doesn't support -P yet. So don't try to use it
+# there.
+p=/usr/bin/python3
+if $p -P -c '' 2>/dev/null; then
+    p="$p -P"
+else
+    # Hacky work around. We don't want to search for Python modules in the
+    # directory we have been invoked.
+    cd /
+fi
+
+$p -m splitgpg2
