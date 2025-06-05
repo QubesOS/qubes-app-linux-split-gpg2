@@ -43,16 +43,16 @@ class StdoutWriterProtocol(protocols.Protocol):
 
     def connection_lost(self, exc: Optional[BaseException]) -> None:
         self._connection_lost = True
-        # Wake up the writer(s) if currently paused.
-        if not self._paused:
-            return
 
-        for waiter in self._drain_waiters:
-            if not waiter.done():
-                if exc is None:
-                    waiter.set_result(None)
-                else:
-                    waiter.set_exception(exc)
+        # Wake up the writer(s) if currently paused.
+        if self._paused:
+            for waiter in self._drain_waiters:
+                if not waiter.done():
+                    if exc is None:
+                        waiter.set_result(None)
+                    else:
+                        waiter.set_exception(exc)
+
         if not self._closed.done():
             if exc is None:
                 self._closed.set_result(None)
