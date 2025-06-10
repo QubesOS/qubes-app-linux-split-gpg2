@@ -1,3 +1,9 @@
+split-gpg2 (1.1.7) unstable; urgency=medium
+
+  * tests: fix setting up IMAP on Whonix
+
+ -- Marek Marczykowski-Górecki <marmarek@invisiblethingslab.com>  Tue, 10 Jun 2025 22:03:22 +0200
+
 split-gpg2 (1.1.6) unstable; urgency=medium
 
   [ Simon Gaiser ]
