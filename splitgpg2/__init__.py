@@ -600,8 +600,11 @@ class GpgServer:
 
     @staticmethod
     def notify(msg: str) -> None:
-        # TODO: call into dbus directly
-        subprocess.call(['notify-send', 'split-gpg2: {}'.format(msg)])
+        try:
+            # TODO: call into dbus directly
+            subprocess.call(['notify-send', 'split-gpg2: {}'.format(msg)])
+        except FileNotFoundError:
+            pass
 
     def request_timer(self, name: str) -> None:
         now = time.time()
