@@ -1,3 +1,10 @@
+split-gpg2 (1.1.8) unstable; urgency=medium
+
+  [ 3np ]
+  * fix: do not raise error on notify-send
+
+ -- Marek Marczykowski-Górecki <marmarek@invisiblethingslab.com>  Sun, 06 Jul 2025 02:57:42 +0200
+
 split-gpg2 (1.1.7) unstable; urgency=medium
 
   * tests: fix setting up IMAP on Whonix
