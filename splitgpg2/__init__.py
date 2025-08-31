@@ -403,7 +403,7 @@ class GpgServer:
 
         source_keyring_dir = config.get('source_keyring_dir')
         if source_keyring_dir is not None:
-            if source_keyring_dir != 'no':
+            if source_keyring_dir.strip(" \"\'").lower() != 'no':
                 self.source_keyring_dir = os.path.expanduser(source_keyring_dir)
         else:
             self.source_keyring_dir = self.gnupghome
