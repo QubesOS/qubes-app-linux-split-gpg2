@@ -1500,8 +1500,9 @@ def main() -> None:
     client_domain = os.environ['QREXEC_REMOTE_DOMAIN']
     config = load_config_files(client_domain)
 
+    asyncio.set_event_loop(asyncio.new_event_loop())
     loop = asyncio.get_event_loop()
-    reader, writer = open_stdinout_connection()
+    reader, writer = open_stdinout_connection(loop=loop)
     server = GpgServer(reader, writer, client_domain,
         debug_log=config.get('debug_log'))
 
