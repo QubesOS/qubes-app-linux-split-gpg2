@@ -1,3 +1,10 @@
+split-gpg2 (1.1.10) unstable; urgency=medium
+
+  [ Ali Mirjamali ]
+  * Initialize asyncio event loop before using it
+
+ -- Marek Marczykowski-Górecki <marmarek@invisiblethingslab.com>  Wed, 17 Sep 2025 15:17:07 +0200
+
 split-gpg2 (1.1.9) unstable; urgency=medium
 
   * tests: adjust tests for Dovecot 2.4
