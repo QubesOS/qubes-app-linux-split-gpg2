@@ -1,3 +1,9 @@
+split-gpg2 (1.1.11) unstable; urgency=medium
+
+  * tests: adjust dovecot 2.4 detection for F43
+
+ -- Marek Marczykowski-Górecki <marmarek@invisiblethingslab.com>  Mon, 27 Oct 2025 13:41:24 +0100
+
 split-gpg2 (1.1.10) unstable; urgency=medium
 
   [ Ali Mirjamali ]
