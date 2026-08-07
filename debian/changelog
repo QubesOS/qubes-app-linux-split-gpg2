@@ -1,3 +1,11 @@
+split-gpg2 (1.1.14) unstable; urgency=medium
+
+  * Format integration tests with black
+  * tests: use --faked-system-time on whonix instead of date -s
+  * tests: add few type hints
+
+ -- Marek Marczykowski-Górecki <marmarek@invisiblethingslab.com>  Fri, 07 Aug 2026 12:57:40 +0200
+
 split-gpg2 (1.1.13) unstable; urgency=medium
 
   [ Jayant-kernel ]
