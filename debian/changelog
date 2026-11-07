@@ -1,3 +1,11 @@
+split-gpg2 (1.1.15) unstable; urgency=medium
+
+  * tests: update how file chooser is searched
+  * tests: update open/save attachment dialog interaction too
+  * tests: fix syntax warning about . escape sequence
+
+ -- Marek Marczykowski-Górecki <marmarek@invisiblethingslab.com>  Sat, 07 Nov 2026 03:39:26 +0100
+
 split-gpg2 (1.1.14) unstable; urgency=medium
 
   * Format integration tests with black
