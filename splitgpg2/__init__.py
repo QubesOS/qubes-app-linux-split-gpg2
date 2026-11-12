@@ -1352,12 +1352,18 @@ class GpgServer:
         return True
 
     @staticmethod
-    def unescape_D(untrusted_arg: bytes) -> bytes:
-        return re.sub(
-            rb'%[0-9A-F]{2}',
-            lambda m: bytes([int(m.group(0)[1:], 16)]),
-            untrusted_arg
-        )
+    def unescape_D(escaped: bytes) -> bytes:
+        parts = escaped.split(b"%")
+        unescaped = parts[0:1]
+        for part in parts[1:]:
+            if len(part) < 2:
+                raise ValueError("Invalid percent escape (too short)")
+            hex_val, rest = part[0:2], part[2:]
+            if not _hex_regex.match(hex_val):
+                raise ValueError("Invalid percent escape (non Hex)")
+            unescaped.append(bytes([int(hex_val, 16)]))
+            unescaped.append(rest)
+        return b"".join(unescaped)
 
     @staticmethod
     def escape_D(data: bytes) -> bytes:
