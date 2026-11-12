@@ -1087,6 +1087,10 @@ class GpgServer:
 
     def agent_write(self, data: bytes, writer: asyncio.StreamWriter) -> None:
         assert writer is not None, 'agent_write called with no agent writer?'
+        if len(data) > MAX_LINE_LENGTH:
+            raise AssertionError("BUG: About to send too long line to agent!")
+        if data[-1] != 0x0a:
+            raise AssertionError("BUG: About to send unterminated line to agent!")
         self.log_io('A <<<', data)
         writer.write(data)
 
