@@ -65,8 +65,13 @@ if TYPE_CHECKING:
 # pylint: disable=invalid-name
 T = TypeVar('T', List['SExpr'], bytes)
 
-# from assuan.h
-ASSUAN_LINELENGTH = 1002
+# GnuPG's Assuan implementation limits it too 1002 including line termination.
+# But in it's docs they says "1000 characters including [...] CR, LF". So limit
+# it to the more conservative value.
+#
+# We include line termination here and only send and accept LF.
+
+MAX_LINE_LENGTH = 1000
 
 known_eddsa_curves = { b'Ed25519', b'Ed448' }
 
@@ -645,10 +650,10 @@ class GpgServer:
 
     async def read_one_line_from_client(self) -> bytes:
         untrusted_line = await self.client_reader.readline()
+        if len(untrusted_line) > MAX_LINE_LENGTH:
+            raise Filtered('Line too long, dropping')
         untrusted_line = untrusted_line.rstrip(b'\n')
         # pylint: disable=arguments-differ
-        if len(untrusted_line) > ASSUAN_LINELENGTH:
-            raise Filtered('Line too long, dropping')
         self.log_io('C >>>', untrusted_line)
         return untrusted_line
 
