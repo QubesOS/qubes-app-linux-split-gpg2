@@ -179,7 +179,7 @@ def extract_args(untrusted_line: bytes, sep: bytes = b' ') -> Tuple[bytes, Optio
 
 # none of our uses allow 0, so do not allow it
 _int_re: re.Pattern[bytes] = re.compile(rb'\A[1-9][0-9]*\Z')
-_hash_regex = re.compile(rb'\A[0-9A-F]+\Z')
+_hex_regex = re.compile(rb'\A[0-9A-F]+\Z')
 
 def sanitize_int(untrusted_arg: bytes, min_value: int, max_value: int) -> int:
     """
@@ -684,7 +684,7 @@ class GpgServer:
         if not (min_count <= len(untrusted_args_list) <= max_count):
             raise Filtered
         for untrusted_arg in untrusted_args_list:
-            if len(untrusted_arg) != 40 or not _hash_regex.match(untrusted_arg):
+            if len(untrusted_arg) != 40 or not _hex_regex.match(untrusted_arg):
                 raise Filtered
         return b' '.join(untrusted_args_list)
 
@@ -971,7 +971,7 @@ class GpgServer:
         if len(untrusted_hash) != alg_param.len:
             raise Filtered
 
-        if not _hash_regex.match(untrusted_hash):
+        if not _hex_regex.match(untrusted_hash):
             raise Filtered
         hash_value = untrusted_hash
 
