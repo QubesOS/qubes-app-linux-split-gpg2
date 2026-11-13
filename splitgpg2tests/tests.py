@@ -622,7 +622,8 @@ class TC_20_Evolution(SplitGPGBase):
         p = self.frontend.run(
             "git clone -n https://gitlab.com/dogtail/dogtail.git && "
             "cd dogtail && "
-            "git checkout 4d7923dcda92c2c44309d2a56b0bb616a1855155",
+            "git checkout 4d7923dcda92c2c44309d2a56b0bb616a1855155 &&"
+            "sed -i \"s/node.roleName == 'push button'/node.roleName in ['push button', 'button']/\" dogtail/predicate.py",
             passio_popen=True,
             passio_stderr=True,
         )
@@ -700,7 +701,6 @@ class TC_20_Evolution(SplitGPGBase):
             ),
         )
 
-    @unittest.skip("handling attachments not done")
     def test_020_send_receive_with_attachment(self):
         p = self.frontend.run(
             "PYTHONPATH=$HOME/dogtail python3 {} send_receive "
