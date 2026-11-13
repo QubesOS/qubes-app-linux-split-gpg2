@@ -1,3 +1,13 @@
+split-gpg2 (1.1.16) unstable; urgency=medium
+
+  [ Simon Gaiser ]
+  * Fix incomming line length check
+  * Rename _hash_regex to _hex_regex
+  * Disallow invalid escape sequenced in unescape_D
+  * Ensure that we don't send overlong lines to the agent
+
+ -- Marek Marczykowski-Górecki <marmarek@invisiblethingslab.com>  Fri, 13 Nov 2026 17:30:06 +0100
+
 split-gpg2 (1.1.15) unstable; urgency=medium
 
   * tests: update how file chooser is searched
