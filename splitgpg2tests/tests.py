@@ -448,6 +448,8 @@ class TC_10_Thunderbird(SplitGPGBase):
         )
         self.frontend.run("systemctl restart dovecot", wait=True, user="root")
 
+        self.dogtail_setup()
+
         self.setup_tb_profile(setup_openpgp=True)
 
         p = self.frontend.run(
