@@ -143,6 +143,23 @@ Expire-Date: 0
             "{} failed: {}{}".format(cmd, stdout.decode(), stderr.decode()),
         )
 
+    def dogtail_setup(self):
+        """Adjust dogtail"""
+
+        # patch old dogtail
+        p = self.frontend.run(
+            "python3 -c 'import dogtail; print(dogtail.__version__);'",
+            passio_popen=True
+        )
+        dogtail_version = p.communicate()[0].decode().strip()
+        if dogtail_version.startswith("0.9"):
+            self.frontend.run(
+                "sed -i \"s/node.roleName == 'push button'/node.roleName in ['push button', 'button']/\" "
+                "/usr/*/python3*/*-packages/dogtail/predicate.py",
+                user="root",
+                wait=True
+            )
+
 
 class TC_00_Direct(SplitGPGBase):
     def test_000_version(self):
@@ -606,6 +623,8 @@ class TC_20_Evolution(SplitGPGBase):
         assert p == 0, "Failed to enable accessibility toolkit"
         if self.frontend.run("ls {}".format(self.scriptpath), wait=True):
             self.skipTest("split-gpg2-tests package not installed")
+
+        self.dogtail_setup()
 
         # run as root to not deal with /var/mail permission issues
         self.frontend.run("mkdir -p Mail/new Mail/cur Mail/tmp", wait=True)
