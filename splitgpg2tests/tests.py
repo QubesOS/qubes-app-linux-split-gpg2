@@ -160,6 +160,18 @@ Expire-Date: 0
                 wait=True
             )
 
+    def pin_whonix_clocks(self):
+        # Whonix boots with a random clock and sdwdate steps it later; a step
+        # stalls dovecot for that long and future signatures look bad
+        if "whonix" not in self.template:
+            return
+        for vm in (self.backend, self.frontend):
+            vm.run(
+                f"systemctl stop sdwdate; date -s @{time.time():.3f}",
+                user="root",
+                wait=True,
+            )
+
 
 class TC_00_Direct(SplitGPGBase):
     def test_000_version(self):
@@ -391,9 +403,10 @@ class TC_10_Thunderbird(SplitGPGBase):
     scriptpath = "/usr/share/split-gpg2-tests/test_thunderbird.py"
 
     def setUp(self):
-        if self.template.startswith("whonix-gw"):
+        if self.template.startswith(("whonix-gw", "whonix-gateway")):
             self.skipTest("whonix-gw template not supported by this test")
         super(TC_10_Thunderbird, self).setUp()
+        self.pin_whonix_clocks()
         self.frontend.run_service(
             "qubes.WaitForSession", wait=True, input="user"
         )
@@ -608,9 +621,10 @@ class TC_20_Evolution(SplitGPGBase):
     scriptpath = "/usr/share/split-gpg2-tests/test_evolution.py"
 
     def setUp(self):
-        if self.template.startswith("whonix-gw"):
+        if self.template.startswith(("whonix-gw", "whonix-gateway")):
             self.skipTest("whonix-gw template not supported by this test")
         super(TC_20_Evolution, self).setUp()
+        self.pin_whonix_clocks()
         self.frontend.run_service(
             "qubes.WaitForSession", wait=True, input="user"
         )
